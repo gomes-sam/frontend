@@ -1,29 +1,13 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api, clearSession } from "../../services/api";
+import { getApiErrorMessage } from "../../services/error";
+import { orderService } from "../../services/orderService";
+import { clearSession } from "../../services/session";
 import BotaoVoltar from "../../components/common/BotaoVoltar";
+import type { Pedido, StatusPedido } from "../../types";
 
-interface PedidoItem {
-  nomeItem: string;
-  quantidade: number;
-  precoUnitario: number;
-}
-
-interface Pedido {
-  id: number;
-  nomeRestaurante?: string;
-  status: string;
-  formaPagamento: string;
-  enderecoEntrega?: string;
-  observacao?: string;
-  total: number;
-  itens: PedidoItem[];
-  criadoEm?: string;
-  createdAt?: string;
-}
-
-const statusOptions = [
-  "PENDENTE",
+const statusOptions: StatusPedido[] = [
+  "AGUARDANDO",
   "ACEITO",
   "EM_PREPARO",
   "PRONTO",
@@ -33,9 +17,8 @@ const statusOptions = [
   "RECUSADO",
 ];
 
-function traduzirStatus(status: string) {
-  const labels: Record<string, string> = {
-    PENDENTE: "Pendente",
+function traduzirStatus(status: StatusPedido) {
+  const labels: Record<StatusPedido, string> = {
     AGUARDANDO: "Pendente",
     ACEITO: "Aceito",
     EM_PREPARO: "Em preparo",
@@ -66,37 +49,44 @@ export default function PainelRestaurante() {
     setErro("");
 
     try {
-      const response = await api.get("/restaurante/pedidos/listar");
-      setPedidos(Array.isArray(response.data) ? response.data : []);
+      const lista = await orderService.listarPedidosRestaurante();
+      setPedidos(lista);
     } catch (error) {
-      console.error("Erro ao carregar pedidos:", error);
-      setErro("Erro ao carregar pedidos do restaurante.");
+      setErro(getApiErrorMessage(error, "Erro ao carregar pedidos do restaurante."));
       setPedidos([]);
     } finally {
       setLoading(false);
     }
   }
 
-  async function atualizarStatus(id: number, status: string) {
+  async function atualizarStatus(id: number, status: StatusPedido) {
+    const motivoRecusa =
+      status === "RECUSADO"
+        ? window.prompt("Informe o motivo da recusa do pedido:")?.trim()
+        : undefined;
+
+    if (status === "RECUSADO" && !motivoRecusa) {
+      return;
+    }
+
     try {
-      await api.patch(`/restaurante/pedidos/atualizar/${id}/status`, {
+      await orderService.atualizarStatus(id, {
         status,
+        motivoRecusa,
       });
 
       await carregarPedidos();
     } catch (error) {
-      console.error("Erro ao atualizar status:", error);
-      alert("Erro ao atualizar status do pedido.");
+      alert(getApiErrorMessage(error, "Erro ao atualizar status do pedido."));
     }
   }
 
   async function alternarAberto() {
     try {
-      await api.patch("/restaurante/pedidos/alternar/aberto");
+      await orderService.alternarAberto();
       alert("Status de funcionamento alterado.");
     } catch (error) {
-      console.error("Erro ao alternar funcionamento:", error);
-      alert("Erro ao alterar status do restaurante.");
+      alert(getApiErrorMessage(error, "Erro ao alterar status do restaurante."));
     }
   }
 
@@ -215,7 +205,7 @@ export default function PainelRestaurante() {
                     </h3>
 
                     <p className="text-xs text-slate-500 mt-1">
-                      {formatarData(pedido.criadoEm || pedido.createdAt)}
+                      {formatarData(pedido.criadoEm)}
                     </p>
 
                     <p className="text-sm text-slate-500 mt-3">
@@ -240,6 +230,13 @@ export default function PainelRestaurante() {
                         {pedido.formaPagamento}
                       </strong>
                     </p>
+
+                    {pedido.motivoRecusa && (
+                      <p className="text-sm text-red-600 mt-1">
+                        Motivo da recusa:{" "}
+                        <strong>{pedido.motivoRecusa}</strong>
+                      </p>
+                    )}
                   </div>
 
                   <div className="flex flex-col gap-3 min-w-[220px]">
@@ -248,9 +245,9 @@ export default function PainelRestaurante() {
                     </span>
 
                     <select
-                      value={pedido.status === "AGUARDANDO" ? "PENDENTE" : pedido.status}
+                      value={pedido.status}
                       onChange={(e) =>
-                        atualizarStatus(pedido.id, e.target.value)
+                        atualizarStatus(pedido.id, e.target.value as StatusPedido)
                       }
                       className="bg-slate-50 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-[#E8442A]"
                     >

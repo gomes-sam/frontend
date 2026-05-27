@@ -1,73 +1,111 @@
-# React + TypeScript + Vite
+# BoiaAqui Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Interface web do BoiaAqui para clientes, restaurantes, funcionários e administradores. O projeto foi alinhado ao contrato OpenAPI exposto pelo backend em `http://localhost:8080/swagger-ui/index.html`.
 
-Currently, two official plugins are available:
+## Estado Atual
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+O frontend consome os endpoints reais do Swagger por services tipados, mantém a sessão JWT em um único módulo, trata erros da API de forma padronizada e utiliza proxy do Vite no desenvolvimento.
 
-## React Compiler
+Validações executadas:
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- `npm run lint`
+- `npm run build`
+- consulta do OpenAPI em `GET /v3/api-docs`
+- smoke test de rotas públicas e autenticação
+- smoke test do proxy Vite para a API
 
-## Expanding the ESLint configuration
+Há limitações confirmadas no backend para o fluxo de restaurante; consulte [docs/VALIDACAO.md](docs/VALIDACAO.md).
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Tecnologias
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+- React 19 com TypeScript
+- Vite 8
+- React Router
+- Axios
+- Tailwind CSS
+- ESLint
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+## Como Executar
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+Pré-requisitos:
+
+- Node.js compatível com Vite 8
+- backend iniciado em `http://localhost:8080`
+
+Instalação e execução:
+
+```bash
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+O frontend abre em `http://localhost:5174`. Durante o desenvolvimento, chamadas para `/auth`, `/restaurantes`, `/pedidos`, `/restaurante`, `/funcionarios` e `/admin` são encaminhadas ao backend local.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+Para apontar diretamente para outra API, crie `.env.local`:
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```env
+VITE_API_URL=http://localhost:8080
 ```
+
+Com `VITE_API_URL` vazio, o proxy do Vite é usado no modo desenvolvimento.
+
+## Comandos
+
+```bash
+npm run dev       # servidor local
+npm run lint      # análise estática
+npm run build     # TypeScript + bundle de produção
+npm run preview   # visualização do build
+```
+
+## Arquitetura
+
+```text
+src/
+  components/        componentes de layout e navegação
+  contexts/          estado de autenticação
+  pages/             telas públicas, cliente, restaurante e admin
+  services/
+    api.ts           cliente Axios e URLs de arquivos
+    endpoints.ts     catálogo único das rotas do Swagger
+    error.ts         extração uniforme de erros HTTP
+    session.ts       persistência e remoção da sessão JWT
+    *Service.ts      operações por domínio
+  types/index.ts     DTOs e enums do contrato da API
+```
+
+Princípios de consumo:
+
+- Páginas não montam URLs de API nem usam Axios diretamente.
+- Services devolvem DTOs prontos, não objetos `AxiosResponse`.
+- Enums enviados ao backend correspondem exatamente ao OpenAPI.
+- Uploads de cardápio e funcionários usam `multipart/form-data` conforme o Swagger.
+
+## Rotas da Interface
+
+| Rota | Perfil | Função |
+| --- | --- | --- |
+| `/` | Público | busca e listagem de restaurantes |
+| `/login` | Público | autenticação |
+| `/cadastro` | Público | cadastro de usuário |
+| `/restaurante/:id` | Público/Cliente | cardápio e montagem do pedido |
+| `/meus-pedidos` | Cliente | pedidos do usuário |
+| `/pedido/:id` | Cliente | acompanhamento do pedido |
+| `/meu-perfil` | Cliente | dados da sessão |
+| `/restaurante/painel` | Restaurante/Funcionário | pedidos recebidos |
+| `/restaurante/cardapio` | Restaurante/Funcionário | gestão de itens |
+| `/restaurante/funcionarios` | Restaurante/Funcionário | gestão de equipe |
+| `/admin/home` | Admin | indicadores e ações |
+| `/admin/clientes` | Admin | gestão de clientes |
+| `/admin/restaurantes` | Admin | gestão de restaurantes |
+
+## Autenticação
+
+`POST /auth/login` e `POST /auth/register` retornam `token`, `id`, `nome`, `email` e `tipo`. A sessão é salva no `localStorage` por [src/services/session.ts](src/services/session.ts), e o interceptor de [src/services/api.ts](src/services/api.ts) envia `Authorization: Bearer <token>`.
+
+Perfis aceitos: `CLIENTE`, `FUNCIONARIO`, `ADMIN` e `RESTAURANTE`.
+
+## Documentação Complementar
+
+- [Contrato e mapeamento da API](docs/API.md)
+- [Validação, testes e pendências do backend](docs/VALIDACAO.md)

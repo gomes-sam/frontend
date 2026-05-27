@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { adminService } from "../../services/adminService";
 import type { Usuario, Restaurante } from "../../types";
-import { clearSession } from "../../services/api";
+import { clearSession } from "../../services/session";
 import BotaoVoltar from "../../components/common/BotaoVoltar";
 
 export default function HomeAdmin() {
@@ -24,8 +24,8 @@ export default function HomeAdmin() {
         adminService.listarRestaurantes(0, 1000),
       ]);
 
-      const listaUsuarios = usuariosRes.data.content ?? [];
-      const listaRestaurantes = restaurantesRes.data.content ?? [];
+      const listaUsuarios = usuariosRes.content ?? [];
+      const listaRestaurantes = restaurantesRes.content ?? [];
 
       setUsuarios(listaUsuarios.slice(0, 5));
       setRestaurantes(listaRestaurantes.slice(0, 5));

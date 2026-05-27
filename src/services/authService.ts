@@ -1,28 +1,15 @@
 import { api } from "./api";
-import type { TipoUsuario, AuthResponse } from "../types";
-
-export interface LoginRequest {
-  email: string;
-  senha: string;
-}
-
-export interface RegisterRequest {
-  nome: string;
-  email: string;
-  senha: string;
-  cpf: string;
-  telefone: string;
-  tipo: TipoUsuario;
-}
+import { endpoints } from "./endpoints";
+import type { AuthResponse, LoginRequest, RegisterRequest } from "../types";
 
 export const authService = {
   async login(data: LoginRequest): Promise<AuthResponse> {
-    const response = await api.post<AuthResponse>("/auth/login", data);
+    const response = await api.post<AuthResponse>(endpoints.auth.login, data);
     return response.data;
   },
 
   async register(data: RegisterRequest): Promise<AuthResponse> {
-    const response = await api.post<AuthResponse>("/auth/register", data);
+    const response = await api.post<AuthResponse>(endpoints.auth.register, data);
     return response.data;
   },
 };

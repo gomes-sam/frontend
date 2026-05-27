@@ -1,21 +1,15 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api, clearSession, resolveAssetUrl } from "../../services/api";
+import { resolveAssetUrl } from "../../services/api";
+import { clearSession } from "../../services/session";
+import { productService } from "../../services/productService";
 import BotaoVoltar from "../../components/common/BotaoVoltar";
-
-interface ItemCardapio {
-  id: number;
-  nome: string;
-  descricao: string;
-  preco: number;
-  disponivel?: boolean;
-  imagemUrl?: string;
-}
+import type { MenuItem } from "../../types";
 
 export default function Cardapio() {
   const navigate = useNavigate();
 
-  const [itens, setItens] = useState<ItemCardapio[]>([]);
+  const [itens, setItens] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState("");
   const [salvando, setSalvando] = useState(false);
@@ -26,6 +20,7 @@ export default function Cardapio() {
   const [nome, setNome] = useState("");
   const [descricao, setDescricao] = useState("");
   const [preco, setPreco] = useState("");
+  const [categoria, setCategoria] = useState("");
   const [foto, setFoto] = useState<File | null>(null);
 
   const formatarMoeda = (valor: number) =>
@@ -38,11 +33,8 @@ export default function Cardapio() {
     setLoading(true);
 
     try {
-      const response = await api.get<ItemCardapio[]>(
-        "/restaurante/cardapio/listar"
-      );
-
-      setItens(Array.isArray(response.data) ? response.data : []);
+      const lista = await productService.listar();
+      setItens(lista);
     } catch (error) {
       console.error("Erro ao carregar cardápio:", error);
       setItens([]);
@@ -73,23 +65,19 @@ export default function Cardapio() {
 
     setSalvando(true);
 
-    const formData = new FormData();
-    formData.append("nome", nome);
-    formData.append("descricao", descricao);
-    formData.append("preco", String(precoNum));
-
-    if (foto) {
-      formData.append("foto", foto);
-    }
-
     try {
+      const payload = {
+        nome: nome.trim(),
+        descricao: descricao.trim() || undefined,
+        preco: precoNum,
+        categoria: categoria.trim() || undefined,
+        foto,
+      };
+
       if (editandoId) {
-        await api.put(
-          `/restaurante/cardapio/atualizar/item/${editandoId}`,
-          formData
-        );
+        await productService.atualizar(editandoId, payload);
       } else {
-        await api.post("/restaurante/cardapio/adicionar", formData);
+        await productService.adicionar(payload);
       }
 
       await carregarCardapio();
@@ -110,7 +98,7 @@ export default function Cardapio() {
     if (!confirmar) return;
 
     try {
-      await api.delete(`/restaurante/cardapio/deletar/${id}`);
+      await productService.deletar(id);
       await carregarCardapio();
     } catch (error) {
       console.error("Erro ao deletar item:", error);
@@ -120,7 +108,7 @@ export default function Cardapio() {
 
   async function alternarDisponibilidade(id: number) {
     try {
-      await api.patch(`/restaurante/cardapio/alternar/${id}/disponibilidade`);
+      await productService.alternarDisponibilidade(id);
       await carregarCardapio();
     } catch (error) {
       console.error("Erro ao alterar disponibilidade:", error);
@@ -133,15 +121,17 @@ export default function Cardapio() {
     setNome("");
     setDescricao("");
     setPreco("");
+    setCategoria("");
     setFoto(null);
     setModalAberto(true);
   }
 
-  function abrirEdicao(item: ItemCardapio) {
+  function abrirEdicao(item: MenuItem) {
     setEditandoId(item.id);
     setNome(item.nome);
-    setDescricao(item.descricao);
+    setDescricao(item.descricao ?? "");
     setPreco(String(item.preco).replace(".", ","));
+    setCategoria(item.categoria ?? "");
     setFoto(null);
     setModalAberto(true);
   }
@@ -152,6 +142,7 @@ export default function Cardapio() {
     setNome("");
     setDescricao("");
     setPreco("");
+    setCategoria("");
     setFoto(null);
   }
 
@@ -160,7 +151,7 @@ export default function Cardapio() {
 
     return (
       item.nome.toLowerCase().includes(termo) ||
-      item.descricao.toLowerCase().includes(termo)
+      (item.descricao ?? "").toLowerCase().includes(termo)
     );
   });
 
@@ -274,9 +265,9 @@ export default function Cardapio() {
               >
                 <div>
                   <div className="w-full h-36 bg-slate-100 rounded-2xl flex items-center justify-center overflow-hidden mb-4 border border-slate-200/50">
-                    {item.imagemUrl ? (
+                    {item.foto ? (
                       <img
-                        src={resolveAssetUrl(item.imagemUrl)}
+                        src={resolveAssetUrl(item.foto)}
                         alt={item.nome}
                         className="w-full h-full object-cover"
                       />
@@ -392,6 +383,20 @@ export default function Cardapio() {
                   onChange={(e) => setDescricao(e.target.value)}
                   className="w-full bg-slate-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#E8442A] text-slate-800 transition resize-none"
                   placeholder="Descreva os componentes do prato..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
+                  Categoria
+                </label>
+
+                <input
+                  type="text"
+                  value={categoria}
+                  onChange={(e) => setCategoria(e.target.value)}
+                  className="w-full bg-slate-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#E8442A] text-slate-800 transition"
+                  placeholder="Ex: Lanches, Bebidas, Sobremesas"
                 />
               </div>
 

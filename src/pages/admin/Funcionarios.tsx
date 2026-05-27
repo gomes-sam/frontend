@@ -1,18 +1,11 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api, clearSession, resolveAssetUrl } from "../../services/api";
+import { resolveAssetUrl } from "../../services/api";
+import { getApiErrorMessage } from "../../services/error";
+import { clearSession } from "../../services/session";
+import { employeeService } from "../../services/employeeService";
 import BotaoVoltar from "../../components/common/BotaoVoltar";
-
-interface Funcionario {
-  id: number;
-  nome: string;
-  cpf: string;
-  cargo: string;
-  setor: string;
-  email: string;
-  telefone?: string;
-  fotoPerfil?: string;
-}
+import type { Funcionario, FuncionarioRequest } from "../../types";
 
 export default function Funcionarios() {
   const navigate = useNavigate();
@@ -41,8 +34,8 @@ export default function Funcionarios() {
     setErro("");
 
     try {
-      const response = await api.get<Funcionario[]>("/funcionarios/listar");
-      setFuncionarios(Array.isArray(response.data) ? response.data : []);
+      const lista = await employeeService.listar();
+      setFuncionarios(lista);
     } catch (error) {
       console.error("Erro ao buscar funcionários:", error);
       setFuncionarios([]);
@@ -60,56 +53,32 @@ export default function Funcionarios() {
     e.preventDefault();
     setErro("");
 
-    if (!nome || !cpf || !cargo || !setor || !email || (!editandoId && !senha)) {
+    if (!nome || !cpf || !cargo || !setor || !email || !senha) {
       setErro("Preencha todos os campos obrigatórios.");
       return;
     }
 
-    const dados = {
+    const dados: FuncionarioRequest = {
       nome,
       cpf: cpf.replace(/\D/g, ""),
       cargo,
       setor,
       email,
-      senha: senha || undefined,
+      senha,
       telefone: telefone.replace(/\D/g, "") || undefined,
     };
 
-    const formData = new FormData();
-    formData.append(
-      "dados",
-      new Blob([JSON.stringify(dados)], {
-        type: "application/json",
-      })
-    );
-
-    if (foto) {
-      formData.append("foto", foto);
-    }
-
     try {
       if (editandoId) {
-        await api.put(`/funcionarios/atualizar/${editandoId}`, formData);
+        await employeeService.editar(editandoId, dados, foto);
       } else {
-        await api.post("/funcionarios/criar", formData);
+        await employeeService.cadastrar(dados, foto);
       }
 
       await carregarFuncionarios();
       fecharModal();
     } catch (error: unknown) {
-      console.error("Erro ao salvar funcionário:", error);
-      const err = error as { response?: { data?: { message?: unknown; erro?: unknown } } };
-
-      const msg =
-        err.response?.data?.message ||
-        err.response?.data?.erro ||
-        err.response?.data;
-
-      setErro(
-        typeof msg === "string"
-          ? msg
-          : "Erro ao salvar funcionário. Verifique os dados."
-      );
+      setErro(getApiErrorMessage(error, "Erro ao salvar funcionário. Verifique os dados."));
     }
   }
 
@@ -121,7 +90,7 @@ export default function Funcionarios() {
     if (!confirmar) return;
 
     try {
-      await api.delete(`/funcionarios/deletar/${id}`);
+      await employeeService.deletar(id);
       await carregarFuncionarios();
     } catch (error) {
       console.error("Erro ao deletar funcionário:", error);
@@ -428,12 +397,12 @@ export default function Funcionarios() {
               />
 
               <Input
-                label={editandoId ? "Nova Senha" : "Senha *"}
+                label="Senha *"
                 value={senha}
                 onChange={setSenha}
                 placeholder="••••••••"
                 type="password"
-                required={!editandoId}
+                required
               />
 
               <Input
@@ -446,13 +415,13 @@ export default function Funcionarios() {
 
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
-                  Foto
+                  Foto opcional
                 </label>
 
                 <input
                   type="file"
                   accept="image/*"
-                  onChange={(e) => setFoto(e.target.files?.[0] || null)}
+                  onChange={(e) => setFoto(e.target.files?.[0] ?? null)}
                   className="w-full bg-slate-50 border border-gray-200 rounded-xl px-4 py-2 text-sm outline-none text-slate-700"
                 />
               </div>

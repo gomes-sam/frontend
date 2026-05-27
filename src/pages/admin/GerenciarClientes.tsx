@@ -1,20 +1,17 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { adminService } from "../../services/adminService";
-import { api, clearSession } from "../../services/api";
+import { authService } from "../../services/authService";
+import { getApiErrorMessage } from "../../services/error";
+import { clearSession } from "../../services/session";
 import BotaoVoltar from "../../components/common/BotaoVoltar";
+import type { RegisterRequest, Usuario } from "../../types";
 
-interface Cliente {
-  id: number;
-  nome: string;
-  email: string;
-  cpf?: string;
-  telefone?: string;
-  ativo: boolean;
-  tipo: string;
-}
+type ClienteForm = Required<
+  Pick<RegisterRequest, "nome" | "email" | "senha" | "cpf" | "telefone" | "tipo">
+>;
 
-const emptyForm = {
+const emptyForm: ClienteForm = {
   nome: "",
   email: "",
   senha: "",
@@ -23,12 +20,10 @@ const emptyForm = {
   tipo: "CLIENTE",
 };
 
-type ClienteForm = typeof emptyForm;
-
 export default function GerenciarClientes() {
   const navigate = useNavigate();
 
-  const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [clientes, setClientes] = useState<Usuario[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalAberto, setModalAberto] = useState(false);
   const [erro, setErro] = useState("");
@@ -41,8 +36,8 @@ export default function GerenciarClientes() {
     setErro("");
 
     try {
-      const response = await adminService.listarClientes(0, 1000);
-      setClientes(response.data.content ?? []);
+      const pagina = await adminService.listarClientes(0, 1000);
+      setClientes((pagina.content ?? []).filter((usuario) => usuario.tipo === "CLIENTE"));
     } catch (error) {
       console.error(error);
       setErro("Erro ao carregar clientes.");
@@ -67,26 +62,19 @@ export default function GerenciarClientes() {
     setErro("");
 
     try {
-      await api.post("/auth/register", {
+      const payload: RegisterRequest = {
         ...form,
         cpf: form.cpf.replace(/\D/g, ""),
         telefone: form.telefone.replace(/\D/g, ""),
-      });
+      };
+      await authService.register(payload);
 
       setModalAberto(false);
       setForm(emptyForm);
 
       await carregarClientes();
     } catch (error: unknown) {
-      console.error(error);
-      const err = error as { response?: { data?: { message?: unknown; erro?: unknown } } };
-
-      const msg =
-        err.response?.data?.message ||
-        err.response?.data?.erro ||
-        "Erro ao cadastrar cliente.";
-
-      setErro(Array.isArray(msg) ? msg.join(", ") : String(msg));
+      setErro(getApiErrorMessage(error, "Erro ao cadastrar cliente."));
     }
   }
 
@@ -322,7 +310,7 @@ export default function GerenciarClientes() {
                         ? "email"
                         : "text"
                     }
-                    value={form[campo]}
+                    value={form[campo] ?? ""}
                     onChange={(e) =>
                       setForm({
                         ...form,

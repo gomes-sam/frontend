@@ -1,22 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { clearSession } from "../../services/api";
-// CORRIGIDO: Caminho ajustado para acessar src/services
-import { api } from "../../services/api";
+import { resolveAssetUrl } from "../../services/api";
+import { restaurantService } from "../../services/restaurantService";
+import { clearSession } from "../../services/session";
+import type { Restaurante } from "../../types";
 
-interface Restaurante {
-  id: number;
-  nomeFantasia: string;
-  categoria: string;
-  aberto: boolean;
-  tempoPedidoMin?: number;
-  tempoPedidoMax?: number;
-  taxaEntrega?: number | string;
-  fotoCapa?: string;
-  cidade?: string;
-}
-
-const fmt = (v: number | string | undefined) => {
+const fmt = (v: number | undefined) => {
   const num = Number(v);
   if (isNaN(num) || num === 0) return "Grátis";
   return `R$ ${num.toFixed(2).replace(".", ",")}`;
@@ -41,8 +30,8 @@ export default function HomeCliente() {
     async function carregar() {
       setLoading(true);
       try {
-        const res = await api.get<Restaurante[]>("/restaurantes/listar");
-        setRestaurantes(res.data);
+        const lista = await restaurantService.listar();
+        setRestaurantes(lista);
       } catch (err) {
         console.error("Erro ao carregar restaurantes:", err);
       } finally {
@@ -175,7 +164,7 @@ export default function HomeCliente() {
                 >
                   <div className="w-full h-44 bg-[#F5ECDC] flex items-center justify-center overflow-hidden">
                     {r.fotoCapa ? (
-                      <img src={r.fotoCapa} alt={r.nomeFantasia} className="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
+                      <img src={resolveAssetUrl(r.fotoCapa)} alt={r.nomeFantasia} className="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
                     ) : (
                       <span className="text-3xl opacity-20 group-hover:scale-110 transition duration-300">🍲</span>
                     )}

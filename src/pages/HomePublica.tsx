@@ -2,21 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import Navbar from "../components/layout/Navbar";
-import { api } from "../services/api";
+import { resolveAssetUrl } from "../services/api";
+import { getApiErrorMessage } from "../services/error";
+import { restaurantService } from "../services/restaurantService";
+import type { CategoriaRestaurante, Restaurante } from "../types";
 
-interface Restaurante {
-  id: number;
-  nomeFantasia: string;
-  categoria?: string;
-  aberto?: boolean;
-  ativo?: boolean;
-  tempoPedidoMin?: number;
-  tempoPedidoMax?: number;
-  taxaEntrega?: number | string;
-  fotoCapa?: string;
-}
-
-const CATEGORIAS = [
+const CATEGORIAS: Array<{ nome: string; valor: CategoriaRestaurante; emoji: string }> = [
   { nome: "Pizzaria", valor: "PIZZARIA", emoji: "🍕" },
   { nome: "Hambúrguer", valor: "HAMBURGUERIA", emoji: "🍔" },
   { nome: "Japonesa", valor: "JAPONESA", emoji: "🍣" },
@@ -47,13 +38,11 @@ export default function HomePublica() {
     setErro("");
 
     try {
-      const res = await api.get("/restaurantes/listar");
-      const lista = Array.isArray(res.data) ? res.data : [];
+      const lista = await restaurantService.listar();
 
       setRestaurantes(lista.filter((r: Restaurante) => r.ativo !== false));
     } catch (error) {
-      console.error("Erro ao carregar restaurantes:", error);
-      setErro("Não foi possível carregar os restaurantes.");
+      setErro(getApiErrorMessage(error, "Não foi possível carregar os restaurantes."));
       setRestaurantes([]);
     } finally {
       setLoading(false);
@@ -70,18 +59,15 @@ export default function HomePublica() {
     }
 
     try {
-      const res = await api.get("/restaurantes/buscar", {
-        params: { termo },
-      });
-
-      setResultados(Array.isArray(res.data) ? res.data : []);
+      const lista = await restaurantService.buscar(termo.trim());
+      setResultados(lista);
     } catch (error) {
       console.error("Erro na busca:", error);
       setResultados([]);
     }
   }
 
-  async function handleCategoria(valor: string) {
+  async function handleCategoria(valor: CategoriaRestaurante | "") {
     setCategoriaAtiva(valor);
     setBusca("");
     setResultados([]);
@@ -94,8 +80,8 @@ export default function HomePublica() {
     setLoading(true);
 
     try {
-      const res = await api.get(`/restaurantes/buscar/categoria/${valor}`);
-      setRestaurantes(Array.isArray(res.data) ? res.data : []);
+      const lista = await restaurantService.buscarPorCategoria(valor);
+      setRestaurantes(lista);
     } catch (error) {
       console.error("Erro ao filtrar categoria:", error);
       setRestaurantes([]);
@@ -108,8 +94,8 @@ export default function HomePublica() {
     navigate(`/restaurante/${id}`);
   }
 
-  function formatarPreco(valor?: number | string) {
-    if (valor === undefined || valor === null || valor === "") {
+  function formatarPreco(valor?: number) {
+    if (valor === undefined || valor === null) {
       return "0,00";
     }
 
@@ -271,7 +257,7 @@ export default function HomePublica() {
                   <div className="h-52 bg-orange-100 flex items-center justify-center text-6xl">
                     {r.fotoCapa ? (
                       <img
-                        src={r.fotoCapa}
+                        src={resolveAssetUrl(r.fotoCapa)}
                         alt={r.nomeFantasia}
                         className="w-full h-full object-cover"
                       />

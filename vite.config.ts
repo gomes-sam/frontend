@@ -7,7 +7,7 @@ export default defineConfig({
   server: {
     port: 5174,
     proxy: {
-      '^/': {
+      '^/(auth|restaurantes|pedidos|restaurante|admin|funcionarios)(/|$)': {
         target: 'http://localhost:8080',
         changeOrigin: true,
       },

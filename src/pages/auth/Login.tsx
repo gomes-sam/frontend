@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { authService } from "../../services/authService";
-import { saveSession } from "../../services/api";
-import loginDog from "../../assets/login-dog.png";
+import { getApiErrorMessage } from "../../services/error";
+import { saveSession } from "../../services/session";
+import loginDog from "../../assets/hero.png";
 import BotaoVoltar from "../../components/common/BotaoVoltar";
 
 export default function Login() {
@@ -25,15 +26,11 @@ export default function Login() {
     setLoading(true);
 
     const payload = { email, senha };
-    console.log("Login body enviado:", payload);
 
     try {
       const auth = await authService.login(payload);
-      console.log("Login resposta recebida:", auth);
 
       saveSession(auth);
-      console.log("Token salvo:", auth.token);
-      console.log("Role salva:", auth.tipo);
 
       if (auth.tipo === "ADMIN") {
         navigate("/admin/home");
@@ -43,44 +40,12 @@ export default function Login() {
         navigate("/");
       }
     } catch (error: unknown) {
-      console.error("Erro ao autenticar:", error);
-      const err = error as {
-        response?: { data?: unknown; status?: number };
-        data?: unknown;
-      };
-      const responseData = err.response?.data ?? err.data;
-      let mensagem = "Não foi possível conectar ao servidor.";
-
-      if (typeof responseData === "string") {
-        mensagem = responseData;
-      } else if (Array.isArray(responseData)) {
-        mensagem = responseData.join(", ");
-      } else if (responseData && typeof responseData === "object") {
-        const dataObj = responseData as Record<string, unknown>;
-
-        if (typeof dataObj.message === "string") {
-          mensagem = dataObj.message;
-        } else if (typeof dataObj.erro === "string") {
-          mensagem = dataObj.erro;
-        } else if (typeof dataObj.error === "string") {
-          mensagem = dataObj.error;
-        } else if (typeof dataObj.mensagem === "string") {
-          mensagem = dataObj.mensagem;
-        } else {
-          const values = Object.values(dataObj).filter(
-            (value): value is string => typeof value === "string"
-          );
-          if (values.length > 0) {
-            mensagem = values.join(", ");
-          }
-        }
-      }
-
-      if (err.response?.status === 401 || err.response?.status === 403) {
-        mensagem = "E-mail ou senha incorretos.";
-      }
-
-      setErro(mensagem);
+      const status = (error as { response?: { status?: number } }).response?.status;
+      setErro(
+        status === 401 || status === 403
+          ? "E-mail ou senha incorretos."
+          : getApiErrorMessage(error, "Não foi possível realizar o login.")
+      );
     } finally {
       setLoading(false);
     }

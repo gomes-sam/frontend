@@ -1,35 +1,18 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { api, clearSession } from "../../services/api";
+import { getApiErrorMessage } from "../../services/error";
+import { orderService } from "../../services/orderService";
+import { restaurantService } from "../../services/restaurantService";
+import { clearSession } from "../../services/session";
 import BotaoVoltar from "../../components/common/BotaoVoltar";
-
-interface MenuItem {
-  id: number;
-  nome: string;
-  descricao?: string;
-  preco: number | string;
-  disponivel: boolean;
-  imagemUrl?: string;
-}
-
-interface Restaurante {
-  id: number;
-  nomeFantasia: string;
-  categoria: string;
-  aberto: boolean;
-  tempoPedidoMin?: number;
-  tempoPedidoMax?: number;
-  taxaEntrega?: number | string;
-  fotoCapa?: string;
-  logo?: string;
-}
+import type { FormaPagamento, MenuItem, PedidoRequest, Restaurante } from "../../types";
 
 interface ItemCarrinho {
   item: MenuItem;
   quantidade: number;
 }
 
-const fmt = (v: number | string | undefined) =>
+const fmt = (v: number | undefined) =>
   `R$ ${Number(v ?? 0).toFixed(2).replace(".", ",")}`;
 
 export default function DetalheRestaurante() {
@@ -41,7 +24,7 @@ export default function DetalheRestaurante() {
   const [carrinho, setCarrinho] = useState<ItemCarrinho[]>([]);
   const [endereco, setEndereco] = useState("");
   const [observacao, setObservacao] = useState("");
-  const [formaPagamento, setFormaPagamento] = useState("PIX");
+  const [formaPagamento, setFormaPagamento] = useState<FormaPagamento>("PIX");
   const [loading, setLoading] = useState(true);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState("");
@@ -49,20 +32,25 @@ export default function DetalheRestaurante() {
   const logado = !!localStorage.getItem("@BoiaAqui:token");
 
   useEffect(() => {
-    if (!id) return;
+    const restauranteId = Number(id);
+    if (!id || Number.isNaN(restauranteId)) {
+      setErro("Restaurante inválido.");
+      setLoading(false);
+      return;
+    }
 
     setLoading(true);
 
     Promise.all([
-      api.get<Restaurante>(`/restaurantes/buscar/${id}`),
-      api.get<MenuItem[]>(`/restaurantes/buscar/${id}/cardapio`),
+      restaurantService.buscarPorId(restauranteId),
+      restaurantService.buscarCardapio(restauranteId),
     ])
-      .then(([rRes, cRes]) => {
-        setRestaurante(rRes.data);
-        setCardapio(Array.isArray(cRes.data) ? cRes.data : []);
+      .then(([dadosRestaurante, itens]) => {
+        setRestaurante(dadosRestaurante);
+        setCardapio(itens);
       })
-      .catch(() => {
-        setErro("Não foi possível carregar o restaurante.");
+      .catch((error) => {
+        setErro(getApiErrorMessage(error, "Não foi possível carregar o restaurante."));
       })
       .finally(() => {
         setLoading(false);
@@ -136,7 +124,7 @@ export default function DetalheRestaurante() {
     setEnviando(true);
 
     try {
-      await api.post("/pedidos/criar", {
+      const pedido: PedidoRequest = {
         restauranteId: Number(id),
         itens: carrinho.map((c) => ({
           menuItemId: c.item.id,
@@ -145,37 +133,13 @@ export default function DetalheRestaurante() {
         formaPagamento,
         enderecoEntrega: endereco,
         observacao,
-      });
+      };
+
+      await orderService.criar(pedido);
 
       navigate("/meus-pedidos");
     } catch (error: unknown) {
-      const err = error as {
-        response?: { data?: unknown; status?: number };
-        data?: unknown;
-      };
-      const responseData = err.response?.data ?? err.data;
-
-      let mensagem = "Erro ao confirmar pedido.";
-
-      if (typeof responseData === "string") {
-        mensagem = responseData;
-      } else if (Array.isArray(responseData)) {
-        mensagem = responseData.join(", ");
-      } else if (responseData && typeof responseData === "object") {
-        const dataObj = responseData as Record<string, unknown>;
-
-        if (typeof dataObj.message === "string") {
-          mensagem = dataObj.message;
-        } else if (typeof dataObj.erro === "string") {
-          mensagem = dataObj.erro;
-        } else if (typeof dataObj.error === "string") {
-          mensagem = dataObj.error;
-        } else if (typeof dataObj.mensagem === "string") {
-          mensagem = dataObj.mensagem;
-        }
-      }
-
-      setErro(mensagem);
+      setErro(getApiErrorMessage(error, "Erro ao confirmar pedido."));
     } finally {
       setEnviando(false);
     }
@@ -432,13 +396,13 @@ export default function DetalheRestaurante() {
 
                     <select
                       value={formaPagamento}
-                      onChange={(e) => setFormaPagamento(e.target.value)}
+                      onChange={(e) => setFormaPagamento(e.target.value as FormaPagamento)}
                       className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:border-[#E8442A] focus:outline-none bg-white"
                     >
                       <option value="PIX">PIX</option>
                       <option value="DINHEIRO">Dinheiro</option>
-                      <option value="CARTAO_CREDITO">Cartão de Crédito</option>
-                      <option value="CARTAO_DEBITO">Cartão de Débito</option>
+                      <option value="CREDITO">Cartão de Crédito</option>
+                      <option value="DEBITO">Cartão de Débito</option>
                     </select>
                   </div>
 

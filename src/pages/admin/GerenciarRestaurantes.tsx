@@ -1,20 +1,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api, clearSession, resolveAssetUrl } from "../../services/api";
+import { adminService } from "../../services/adminService";
+import { resolveAssetUrl } from "../../services/api";
+import { clearSession } from "../../services/session";
 import BotaoVoltar from "../../components/common/BotaoVoltar";
-
-interface Restaurante {
-  id: number;
-  nomeFantasia: string;
-  categoria: string;
-  tempoPedidoMin?: number;
-  tempoPedidoMax?: number;
-  taxaEntrega?: number;
-  fotoCapa?: string;
-  imagemUrl?: string;
-  aberto: boolean;
-  ativo: boolean;
-}
+import type { Restaurante } from "../../types";
 
 export default function GerenciarRestaurantes() {
   const navigate = useNavigate();
@@ -40,10 +30,8 @@ export default function GerenciarRestaurantes() {
     setLoading(true);
 
     try {
-      const response = await api.get("/admin/listar/restaurantes");
-      const lista = response.data.content ?? response.data;
-
-      setRestaurantes(Array.isArray(lista) ? lista : []);
+      const pagina = await adminService.listarRestaurantes(0, 1000);
+      setRestaurantes(pagina.content ?? []);
     } catch (error) {
       console.error("Erro ao carregar restaurantes:", error);
       setRestaurantes([]);
@@ -58,7 +46,7 @@ export default function GerenciarRestaurantes() {
 
   async function ativarDesativar(id: number) {
     try {
-      await api.patch(`/admin/atualizar/restaurantes/${id}/ativo`);
+      await adminService.ativarDesativarRestaurante(id);
       await carregarRestaurantes();
     } catch (error) {
       console.error(error);
@@ -70,7 +58,7 @@ export default function GerenciarRestaurantes() {
     if (!window.confirm("Deseja realmente remover este restaurante?")) return;
 
     try {
-      await api.delete(`/admin/deletar/restaurantes/${id}`);
+      await adminService.deletarRestaurante(id);
       await carregarRestaurantes();
     } catch (error) {
       console.error(error);
@@ -219,9 +207,9 @@ export default function GerenciarRestaurantes() {
                     <tr key={r.id} className="hover:bg-slate-50/50 transition">
                       <td className="py-4 px-6 text-center">
                         <div className="w-10 h-10 rounded-xl bg-[#E8442A]/10 flex items-center justify-center mx-auto overflow-hidden">
-                          {r.fotoCapa || r.imagemUrl ? (
+                          {r.fotoCapa ? (
                             <img
-                              src={resolveAssetUrl(r.fotoCapa || r.imagemUrl)}
+                              src={resolveAssetUrl(r.fotoCapa)}
                               alt={r.nomeFantasia}
                               className="w-full h-full object-cover"
                             />

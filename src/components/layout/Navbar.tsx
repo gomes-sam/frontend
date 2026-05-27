@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { clearSession } from "../../services/api";
+import { clearSession } from "../../services/session";
 
 export default function Navbar() {
   const navigate = useNavigate();

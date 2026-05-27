@@ -10,9 +10,13 @@ export type CategoriaRestaurante =
   | "DOCERIA"
   | "OUTROS";
 
-export type FormaPagamento = "PIX" | "DINHEIRO" | "CARTAO_CREDITO" | "CARTAO_DEBITO";
+export type FormaPagamento =
+  | "DEBITO"
+  | "CREDITO"
+  | "PIX"
+  | "DINHEIRO";
 export type StatusPedido =
-  | "PENDENTE"
+  | "AGUARDANDO"
   | "ACEITO"
   | "EM_PREPARO"
   | "PRONTO"
@@ -20,6 +24,15 @@ export type StatusPedido =
   | "ENTREGUE"
   | "CANCELADO"
   | "RECUSADO";
+export type StatusPagamento =
+  | "PENDENTE"
+  | "APROVADO"
+  | "RECUSADO"
+  | "ESTORNADO";
+
+export interface GrantedAuthority {
+  authority: string;
+}
 
 export interface AuthResponse {
   token: string;
@@ -29,24 +42,53 @@ export interface AuthResponse {
   tipo: TipoUsuario;
 }
 
+export interface LoginRequest {
+  email: string;
+  senha: string;
+}
+
+export interface RegisterRequest {
+  nome: string;
+  email: string;
+  senha: string;
+  cpf?: string;
+  telefone?: string;
+  tipo: TipoUsuario;
+}
+
 export interface Usuario {
   id: number;
   nome: string;
   email: string;
+  senha?: string;
   cpf?: string;
   telefone?: string;
+  fotoPerfil?: string;
   tipo: TipoUsuario;
   ativo: boolean;
-  senha?: string;
+  criadoEm?: string;
+  atualizadoEm?: string;
+  enabled?: boolean;
+  authorities?: GrantedAuthority[];
+  username?: string;
+  credentialsNonExpired?: boolean;
+  accountNonExpired?: boolean;
+  accountNonLocked?: boolean;
+  password?: string;
 }
 
 export interface Restaurante {
   id: number;
+  usuario?: unknown;
   nomeFantasia: string;
   descricao?: string;
   categoria: CategoriaRestaurante;
+  logradouro?: string;
+  numero?: string;
+  bairro?: string;
   cidade?: string;
   estado?: string;
+  cep?: string;
   telefone?: string;
   fotoCapa?: string;
   logo?: string;
@@ -54,19 +96,35 @@ export interface Restaurante {
   tempoPedidoMin?: number;
   tempoPedidoMax?: number;
   avaliacaoMedia?: number;
+  totalAvaliacoes?: number;
   aberto: boolean;
   ativo: boolean;
+  criadoEm?: string;
+  cardapio?: MenuItem[];
 }
 
 export interface MenuItem {
   id: number;
-  restauranteId: number;
+  restaurante?: unknown;
   nome: string;
   descricao?: string;
   preco: number;
-  disponivel: boolean;
-  imagemUrl?: string;
+  foto?: string;
   categoria?: string;
+  disponivel: boolean;
+}
+
+export interface PedidoItemRequest {
+  menuItemId: number;
+  quantidade: number;
+}
+
+export interface PedidoRequest {
+  restauranteId: number;
+  itens: PedidoItemRequest[];
+  formaPagamento: FormaPagamento;
+  enderecoEntrega?: string;
+  observacao?: string;
 }
 
 export interface PedidoItem {
@@ -75,27 +133,43 @@ export interface PedidoItem {
   quantidade: number;
   precoUnitario: number;
   subtotal: number;
-  imagemUrl?: string;
 }
 
 export interface Pedido {
   id: number;
-  clienteId: number;
   restauranteId: number;
   nomeRestaurante: string;
   itens: PedidoItem[];
   status: StatusPedido;
   formaPagamento: FormaPagamento;
+  statusPagamento: StatusPagamento;
   subtotal: number;
   taxaEntrega: number;
   total: number;
   enderecoEntrega: string;
   observacao?: string;
+  motivoRecusa?: string;
   criadoEm: string;
+}
+
+export interface AtualizarStatusRequest {
+  status: StatusPedido;
+  motivoRecusa?: string;
+}
+
+export interface FuncionarioRequest {
+  nome: string;
+  email: string;
+  senha: string;
+  cpf: string;
+  telefone?: string;
+  cargo: string;
+  setor: string;
 }
 
 export interface Funcionario {
   id: number;
+  usuarioId: number;
   nome: string;
   email: string;
   cpf: string;
@@ -104,13 +178,39 @@ export interface Funcionario {
   setor: string;
   fotoPerfil?: string;
   ativo: boolean;
-  restauranteId: number;
+}
+
+export interface SortObject {
+  empty: boolean;
+  unsorted: boolean;
+  sorted: boolean;
+}
+
+export interface PageableObject {
+  offset: number;
+  sort: SortObject;
+  pageNumber: number;
+  pageSize: number;
+  unpaged: boolean;
+  paged: boolean;
+}
+
+export interface Pageable {
+  page?: number;
+  size?: number;
+  sort?: string[];
 }
 
 export interface SpringPageResponse<T> {
-  content: T[];
   totalElements: number;
   totalPages: number;
   size: number;
+  content: T[];
   number: number;
+  sort?: SortObject;
+  first?: boolean;
+  last?: boolean;
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  empty?: boolean;
 }

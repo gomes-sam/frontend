@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { saveSession } from "../../services/api";
 import { authService } from "../../services/authService";
+import { getApiErrorMessage } from "../../services/error";
+import { saveSession } from "../../services/session";
 import type { TipoUsuario } from "../../types";
-import dogImg from "../../assets/img.cadastro.png";
+import dogImg from "../../assets/hero.png";
 import BotaoVoltar from "../../components/common/BotaoVoltar";
 
 export default function Cadastro() {
@@ -73,15 +74,10 @@ export default function Cadastro() {
       tipo,
     };
 
-    console.log("Cadastro body enviado:", payload);
-
     try {
       const auth = await authService.register(payload);
-      console.log("Cadastro resposta recebida:", auth);
 
       saveSession(auth);
-      console.log("Token salvo:", auth.token);
-      console.log("Role salva:", auth.tipo);
 
       const redirectTo =
         auth.tipo === "ADMIN"
@@ -92,41 +88,7 @@ export default function Cadastro() {
 
       navigate(redirectTo);
     } catch (error: unknown) {
-      console.error("Erro de cadastro recebido:", error);
-      const err = error as {
-        response?: { data?: unknown; status?: number };
-        data?: unknown;
-      };
-      const responseData = err.response?.data ?? err.data;
-
-      let mensagem = "Erro ao realizar cadastro.";
-
-      if (typeof responseData === "string") {
-        mensagem = responseData;
-      } else if (Array.isArray(responseData)) {
-        mensagem = responseData.join(", ");
-      } else if (responseData && typeof responseData === "object") {
-        const dataObj = responseData as Record<string, unknown>;
-
-        if (typeof dataObj.message === "string") {
-          mensagem = dataObj.message;
-        } else if (typeof dataObj.erro === "string") {
-          mensagem = dataObj.erro;
-        } else if (typeof dataObj.error === "string") {
-          mensagem = dataObj.error;
-        } else if (typeof dataObj.mensagem === "string") {
-          mensagem = dataObj.mensagem;
-        } else {
-          const values = Object.values(dataObj).filter(
-            (value): value is string => typeof value === "string"
-          );
-          if (values.length > 0) {
-            mensagem = values.join(", ");
-          }
-        }
-      }
-
-      setErro(mensagem);
+      setErro(getApiErrorMessage(error, "Erro ao realizar cadastro."));
     } finally {
       setLoading(false);
     }

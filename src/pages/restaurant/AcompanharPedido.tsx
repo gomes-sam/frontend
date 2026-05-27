@@ -1,30 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { api, clearSession } from "../../services/api";
+import { getApiErrorMessage } from "../../services/error";
+import { orderService } from "../../services/orderService";
+import { clearSession } from "../../services/session";
 import BotaoVoltar from "../../components/common/BotaoVoltar";
+import type { Pedido, StatusPedido } from "../../types";
 
-interface PedidoItem {
-  nomeItem: string;
-  quantidade: number;
-  precoUnitario: number;
-  imagemUrl?: string;
-}
-
-interface Pedido {
-  id: number;
-  status: string;
-  formaPagamento: string;
-  enderecoEntrega?: string;
-  observacao?: string;
-  total: number;
-  itens: PedidoItem[];
-  criadoEm?: string;
-  createdAt?: string;
-  taxaEntrega?: number;
-}
-
-const STATUS_STEPS = [
-  "PENDENTE",
+const STATUS_STEPS: StatusPedido[] = [
+  "AGUARDANDO",
   "ACEITO",
   "EM_PREPARO",
   "PRONTO",
@@ -32,8 +15,7 @@ const STATUS_STEPS = [
   "ENTREGUE",
 ];
 
-const STATUS_LABELS: Record<string, string> = {
-  PENDENTE: "Pedido recebido",
+const STATUS_LABELS: Partial<Record<StatusPedido, string>> = {
   AGUARDANDO: "Pedido recebido",
   ACEITO: "Pedido aceito",
   EM_PREPARO: "Em preparo",
@@ -64,15 +46,19 @@ export default function AcompanharPedido() {
   const [erro, setErro] = useState("");
 
   const carregarPedido = useCallback(async () => {
-    if (!id) return;
+    const pedidoId = Number(id);
+    if (!id || Number.isNaN(pedidoId)) {
+      setErro("Pedido inválido.");
+      setLoading(false);
+      return;
+    }
 
     try {
-      const response = await api.get(`/pedidos/buscar/${id}`);
-      setPedido(response.data);
+      const dados = await orderService.buscar(pedidoId);
+      setPedido(dados);
       setErro("");
     } catch (error) {
-      console.error("Erro ao buscar pedido:", error);
-      setErro("Não foi possível carregar esse pedido.");
+      setErro(getApiErrorMessage(error, "Não foi possível carregar esse pedido."));
     } finally {
       setLoading(false);
     }
@@ -86,7 +72,7 @@ export default function AcompanharPedido() {
     return () => clearInterval(interval);
   }, [carregarPedido]);
 
-  const statusAtual = pedido?.status === "AGUARDANDO" ? "PENDENTE" : pedido?.status;
+  const statusAtual = pedido?.status;
   const stepIndex = statusAtual ? STATUS_STEPS.indexOf(statusAtual) : -1;
 
   const subtotal =
@@ -232,7 +218,7 @@ export default function AcompanharPedido() {
                           {index === 0 && (
                             <p className="text-xs text-slate-400 mt-1">
                               Criado às{" "}
-                              {formatarHora(pedido.criadoEm || pedido.createdAt)}
+                              {formatarHora(pedido.criadoEm)}
                             </p>
                           )}
                         </div>
@@ -269,6 +255,13 @@ export default function AcompanharPedido() {
                     {pedido.formaPagamento}
                   </strong>
                 </p>
+
+                {pedido.motivoRecusa && (
+                  <p className="text-sm text-red-600 mt-2">
+                    Motivo da recusa:
+                    <strong className="ml-1">{pedido.motivoRecusa}</strong>
+                  </p>
+                )}
               </div>
             </section>
 

@@ -1,7 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useMemo, useState } from "react";
 import { authService } from "../services/authService";
-import { clearSession, getSession, saveSession } from "../services/api";
+import { clearSession, getSession, saveSession } from "../services/session";
 import type { AuthResponse, TipoUsuario } from "../types";
 
 interface AuthContextValue {

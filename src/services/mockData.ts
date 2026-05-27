@@ -13,6 +13,9 @@ import type {
 const delay = (ms = 250) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const nextId = <T extends { id: number }>(items: T[]) => (items.length === 0 ? 1 : Math.max(...items.map((item) => item.id)) + 1);
+type MockMenuItem = MenuItem & { restauranteId: number };
+type MockPedido = Pedido & { clienteId: number };
+type MockFuncionario = Funcionario & { restauranteId: number };
 
 const mockUsers: Usuario[] = [
   { id: 1, nome: "Ana Silva", email: "cliente@boiaaqui.com", cpf: "123.456.789-00", telefone: "(11) 98765-4321", tipo: "CLIENTE", ativo: true, senha: "Senha123" },
@@ -72,27 +75,28 @@ const mockRestaurants: Restaurante[] = [
   },
 ];
 
-const mockMenuItems: MenuItem[] = [
-  { id: 1, restauranteId: 1, nome: "Pizza Margherita", descricao: "Molho de tomate, muçarela e manjericão.", preco: 49.9, disponivel: true, imagemUrl: "", categoria: "PIZZARIA" },
-  { id: 2, restauranteId: 1, nome: "Pizza Calabresa", descricao: "Calabresa fatiada e cebola caramelizada.", preco: 54.9, disponivel: true, imagemUrl: "", categoria: "PIZZARIA" },
-  { id: 3, restauranteId: 2, nome: "Burger Clássico", descricao: "Carne bovina, queijo e molho especial.", preco: 34.9, disponivel: true, imagemUrl: "", categoria: "HAMBURGUERIA" },
-  { id: 4, restauranteId: 2, nome: "Burger Veggie", descricao: "Hambúrguer de grãos com guacamole.", preco: 39.9, disponivel: true, imagemUrl: "", categoria: "HAMBURGUERIA" },
-  { id: 5, restauranteId: 3, nome: "Temaki Salmão", descricao: "Salmão fresco com arroz temperado.", preco: 29.9, disponivel: true, imagemUrl: "", categoria: "JAPONESA" },
-  { id: 6, restauranteId: 3, nome: "Uramaki Tradicional", descricao: "Arroz por fora com molho tarê.", preco: 35.9, disponivel: false, imagemUrl: "", categoria: "JAPONESA" },
+const mockMenuItems: MockMenuItem[] = [
+  { id: 1, restauranteId: 1, nome: "Pizza Margherita", descricao: "Molho de tomate, muçarela e manjericão.", preco: 49.9, disponivel: true, foto: "", categoria: "PIZZARIA" },
+  { id: 2, restauranteId: 1, nome: "Pizza Calabresa", descricao: "Calabresa fatiada e cebola caramelizada.", preco: 54.9, disponivel: true, foto: "", categoria: "PIZZARIA" },
+  { id: 3, restauranteId: 2, nome: "Burger Clássico", descricao: "Carne bovina, queijo e molho especial.", preco: 34.9, disponivel: true, foto: "", categoria: "HAMBURGUERIA" },
+  { id: 4, restauranteId: 2, nome: "Burger Veggie", descricao: "Hambúrguer de grãos com guacamole.", preco: 39.9, disponivel: true, foto: "", categoria: "HAMBURGUERIA" },
+  { id: 5, restauranteId: 3, nome: "Temaki Salmão", descricao: "Salmão fresco com arroz temperado.", preco: 29.9, disponivel: true, foto: "", categoria: "JAPONESA" },
+  { id: 6, restauranteId: 3, nome: "Uramaki Tradicional", descricao: "Arroz por fora com molho tarê.", preco: 35.9, disponivel: false, foto: "", categoria: "JAPONESA" },
 ];
 
-const mockOrders: Pedido[] = [
+const mockOrders: MockPedido[] = [
   {
     id: 1,
     clienteId: 1,
     restauranteId: 1,
     nomeRestaurante: "Cantina da Gabi",
     itens: [
-      { menuItemId: 1, nomeItem: "Pizza Margherita", quantidade: 1, precoUnitario: 49.9, subtotal: 49.9, imagemUrl: "" },
-      { menuItemId: 2, nomeItem: "Pizza Calabresa", quantidade: 1, precoUnitario: 54.9, subtotal: 54.9, imagemUrl: "" },
+      { menuItemId: 1, nomeItem: "Pizza Margherita", quantidade: 1, precoUnitario: 49.9, subtotal: 49.9 },
+      { menuItemId: 2, nomeItem: "Pizza Calabresa", quantidade: 1, precoUnitario: 54.9, subtotal: 54.9 },
     ],
     status: "ENTREGUE",
     formaPagamento: "PIX",
+    statusPagamento: "APROVADO",
     subtotal: 104.8,
     taxaEntrega: 9.9,
     total: 114.7,
@@ -106,10 +110,11 @@ const mockOrders: Pedido[] = [
     restauranteId: 2,
     nomeRestaurante: "Hambúrguer do Chef",
     itens: [
-      { menuItemId: 3, nomeItem: "Burger Clássico", quantidade: 2, precoUnitario: 34.9, subtotal: 69.8, imagemUrl: "" },
+      { menuItemId: 3, nomeItem: "Burger Clássico", quantidade: 2, precoUnitario: 34.9, subtotal: 69.8 },
     ],
     status: "EM_PREPARO",
-    formaPagamento: "CARTAO_CREDITO",
+    formaPagamento: "CREDITO",
+    statusPagamento: "PENDENTE",
     subtotal: 69.8,
     taxaEntrega: 7.5,
     total: 77.3,
@@ -119,9 +124,9 @@ const mockOrders: Pedido[] = [
   },
 ];
 
-const mockEmployees: Funcionario[] = [
-  { id: 1, nome: "João Cozinha", email: "joao@boiaaqui.com", cpf: "111.222.333-44", telefone: "(11) 99876-5432", cargo: "Cozinheiro", setor: "Cozinha", ativo: true, restauranteId: 2 },
-  { id: 2, nome: "Maria Salão", email: "maria@boiaaqui.com", cpf: "555.666.777-88", telefone: "(11) 98877-6655", cargo: "Garçom", setor: "Salão", ativo: true, restauranteId: 2 },
+const mockEmployees: MockFuncionario[] = [
+  { id: 1, usuarioId: 3, nome: "João Cozinha", email: "joao@boiaaqui.com", cpf: "111.222.333-44", telefone: "(11) 99876-5432", cargo: "Cozinheiro", setor: "Cozinha", ativo: true, restauranteId: 2 },
+  { id: 2, usuarioId: 5, nome: "Maria Salão", email: "maria@boiaaqui.com", cpf: "555.666.777-88", telefone: "(11) 98877-6655", cargo: "Garçom", setor: "Salão", ativo: true, restauranteId: 2 },
 ];
 
 export async function mockLogin(dados: { email: string; senha: string }): Promise<AuthResponse> {
@@ -227,9 +232,9 @@ export async function mockListMenuItemsByRestaurant(restauranteId: number): Prom
   return mockMenuItems.filter((item) => item.restauranteId === restauranteId);
 }
 
-export async function mockCreateMenuItem(restauranteId: number, item: Omit<MenuItem, "id" | "restauranteId">): Promise<MenuItem> {
+export async function mockCreateMenuItem(restauranteId: number, item: Omit<MenuItem, "id">): Promise<MenuItem> {
   await delay();
-  const novoItem: MenuItem = {
+  const novoItem: MockMenuItem = {
     id: nextId(mockMenuItems),
     restauranteId,
     ...item,
@@ -284,20 +289,20 @@ export async function mockCreateOrder(clienteId: number, pedidoDados: {
       quantidade: item.quantidade,
       precoUnitario: menuItem.preco,
       subtotal: Number((menuItem.preco * item.quantidade).toFixed(2)),
-      imagemUrl: menuItem.imagemUrl,
     };
   });
   const subtotal = itens.reduce((acc, item) => acc + item.subtotal, 0);
   const taxaEntrega = restaurante.taxaEntrega ?? 0;
   const total = Number((subtotal + taxaEntrega).toFixed(2));
-  const novoPedido: Pedido = {
+  const novoPedido: MockPedido = {
     id: nextId(mockOrders),
     clienteId,
     restauranteId: restaurante.id,
     nomeRestaurante: restaurante.nomeFantasia,
     itens,
-    status: "PENDENTE",
+    status: "AGUARDANDO",
     formaPagamento: pedidoDados.formaPagamento,
+    statusPagamento: "PENDENTE",
     subtotal,
     taxaEntrega,
     total,
@@ -319,9 +324,9 @@ export async function mockListEmployees(restauranteId: number): Promise<Funciona
   return mockEmployees.filter((item) => item.restauranteId === restauranteId);
 }
 
-export async function mockCreateEmployee(restauranteId: number, dados: Omit<Funcionario, "id" | "restauranteId">): Promise<Funcionario> {
+export async function mockCreateEmployee(restauranteId: number, dados: Omit<Funcionario, "id">): Promise<Funcionario> {
   await delay();
-  const novo: Funcionario = {
+  const novo: MockFuncionario = {
     id: nextId(mockEmployees),
     restauranteId,
     ...dados,

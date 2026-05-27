@@ -1,27 +1,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api, clearSession } from "../../services/api";
+import { getApiErrorMessage } from "../../services/error";
+import { orderService } from "../../services/orderService";
+import { clearSession } from "../../services/session";
 import BotaoVoltar from "../../components/common/BotaoVoltar";
-
-interface PedidoItem {
-  menuItemId: number;
-  nomeItem: string;
-  quantidade: number;
-  precoUnitario: number;
-}
-
-interface Pedido {
-  id: number;
-  status: string;
-  formaPagamento: string;
-  enderecoEntrega?: string;
-  observacao?: string;
-  total: number;
-  itens: PedidoItem[];
-  criadoEm?: string;
-  createdAt?: string;
-  nomeRestaurante?: string;
-}
+import type { Pedido, StatusPedido } from "../../types";
 
 const formatDataEHora = (iso?: string) => {
   if (!iso) return "—";
@@ -39,9 +22,9 @@ const formatDataEHora = (iso?: string) => {
   return `${data}, ${hora}`;
 };
 
-const traduzirStatus = (status: string) => {
+const traduzirStatus = (status: StatusPedido) => {
   switch (status) {
-    case "PENDENTE":
+    case "AGUARDANDO":
       return "Aguardando";
     case "ACEITO":
       return "Aceito";
@@ -78,11 +61,10 @@ export default function MeusPedidos() {
     setErro("");
 
     try {
-      const response = await api.get("/pedidos/listar");
-      setPedidos(Array.isArray(response.data) ? response.data : []);
+      const lista = await orderService.listar();
+      setPedidos(lista);
     } catch (error) {
-      console.error("Erro ao carregar pedidos:", error);
-      setErro("Não foi possível carregar seus pedidos.");
+      setErro(getApiErrorMessage(error, "Não foi possível carregar seus pedidos."));
       setPedidos([]);
     } finally {
       setLoading(false);
@@ -199,7 +181,7 @@ export default function MeusPedidos() {
                     </h3>
 
                     <p className="text-slate-400 text-xs mt-1">
-                      {formatDataEHora(p.criadoEm || p.createdAt)}
+                      {formatDataEHora(p.criadoEm)}
                     </p>
                   </div>
 

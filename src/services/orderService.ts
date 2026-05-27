@@ -1,26 +1,34 @@
 import { api } from "./api";
+import { endpoints } from "./endpoints";
+import type { AtualizarStatusRequest, Pedido, PedidoRequest, StatusPedido } from "../types";
 
 export const orderService = {
-  async criar<T = unknown>(data: T) {
-    return api.post("/pedidos/criar", data);
+  async criar(data: PedidoRequest) {
+    const response = await api.post<Pedido>(endpoints.pedidos.criar, data);
+    return response.data;
   },
-
   async listar() {
-    return api.get("/pedidos/listar");
+    const response = await api.get<Pedido[]>(endpoints.pedidos.listar);
+    return response.data;
   },
-
   async buscar(id: number) {
-    return api.get(`/pedidos/buscar/${id}`);
+    const response = await api.get<Pedido>(endpoints.pedidos.buscar(id));
+    return response.data;
   },
-
-  async listarPedidosRestaurante() {
-    return api.get("/restaurante/pedidos/listar");
+  async listarPedidosRestaurante(status?: StatusPedido) {
+    const response = await api.get<Pedido[]>(endpoints.restaurante.pedidos.listar, {
+      params: status ? { status } : undefined,
+    });
+    return response.data;
   },
-
-  async atualizarStatus(id: number, status: string) {
-    return api.patch(
-      `/restaurante/pedidos/atualizar/${id}/status`,
-      { status }
+  async atualizarStatus(id: number, data: AtualizarStatusRequest) {
+    const response = await api.patch<Pedido>(
+      endpoints.restaurante.pedidos.atualizarStatus(id),
+      data
     );
+    return response.data;
+  },
+  async alternarAberto() {
+    await api.patch(endpoints.restaurante.pedidos.alternarAberto);
   },
 };
