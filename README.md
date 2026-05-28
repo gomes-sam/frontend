@@ -39,15 +39,15 @@ npm install
 npm run dev
 ```
 
-O frontend abre em `http://localhost:5174`. Durante o desenvolvimento, chamadas para `/auth`, `/restaurantes`, `/pedidos`, `/restaurante`, `/funcionarios` e `/admin` são encaminhadas ao backend local.
+O frontend abre em `http://localhost:5174`. Durante o desenvolvimento, chamadas do cliente usam o prefixo local `/api`, removido pelo proxy do Vite ao encaminhar os endpoints reais para o backend local.
 
-Para apontar diretamente para outra API, crie `.env.local`:
+Para apontar diretamente para outra API, crie `.env.local` somente se esse servidor liberar CORS para requisições autenticadas:
 
 ```env
 VITE_API_URL=http://localhost:8080
 ```
 
-Com `VITE_API_URL` vazio, o proxy do Vite é usado no modo desenvolvimento.
+Com `VITE_API_URL` vazio, o proxy do Vite é usado no modo desenvolvimento. Isso é necessário no backend validado: requisições diretas autenticadas de `http://localhost:5174` para `http://localhost:8080` disparam preflight CORS, atualmente recusado com `403`.
 
 ## Comandos
 
@@ -91,19 +91,25 @@ Princípios de consumo:
 | `/restaurante/:id` | Público/Cliente | cardápio e montagem do pedido |
 | `/meus-pedidos` | Cliente | pedidos do usuário |
 | `/pedido/:id` | Cliente | acompanhamento do pedido |
+| `/checkout` | Cliente | revisão e confirmação do pedido |
+| `/pedido/sucesso` | Cliente | confirmação do pedido criado |
 | `/meu-perfil` | Cliente | dados da sessão |
 | `/restaurante/painel` | Restaurante/Funcionário | pedidos recebidos |
+| `/restaurante/dashboard` | Restaurante/Funcionário | resumo operacional |
 | `/restaurante/cardapio` | Restaurante/Funcionário | gestão de itens |
 | `/restaurante/funcionarios` | Restaurante/Funcionário | gestão de equipe |
 | `/admin/home` | Admin | indicadores e ações |
 | `/admin/clientes` | Admin | gestão de clientes |
 | `/admin/restaurantes` | Admin | gestão de restaurantes |
+| `/acesso-negado` | Público | retorno para acesso sem permissão |
 
 ## Autenticação
 
-`POST /auth/login` e `POST /auth/register` retornam `token`, `id`, `nome`, `email` e `tipo`. A sessão é salva no `localStorage` por [src/services/session.ts](src/services/session.ts), e o interceptor de [src/services/api.ts](src/services/api.ts) envia `Authorization: Bearer <token>`.
+`POST /auth/login` e `POST /auth/register` retornam `token`, `id`, `nome`, `email` e `tipo`. A sessão é salva no `localStorage` por [src/services/session.ts](src/services/session.ts), usando a chave `@boiaaqui:token`, e o interceptor de [src/services/api.ts](src/services/api.ts) envia `Authorization: Bearer <token>`.
 
 Perfis aceitos: `CLIENTE`, `FUNCIONARIO`, `ADMIN` e `RESTAURANTE`.
+
+O cadastro público expõe `CLIENTE`, `RESTAURANTE` e `ADMIN`. `FUNCIONARIO` permanece reconhecido no sistema, mas é criado pela gestão do restaurante. Uma conta `RESTAURANTE` recém-criada pode depender de provisionamento do estabelecimento pelo backend antes de operar cardápio e pedidos.
 
 ## Documentação Complementar
 

@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { resolveAssetUrl } from "../../services/api";
+import { getApiErrorMessage, isRestaurantNotLinkedError } from "../../services/error";
 import { clearSession } from "../../services/session";
 import { productService } from "../../services/productService";
 import BotaoVoltar from "../../components/common/BotaoVoltar";
+import RestauranteNaoVinculado from "../../components/common/RestauranteNaoVinculado";
 import type { MenuItem } from "../../types";
 
 export default function Cardapio() {
@@ -13,6 +15,11 @@ export default function Cardapio() {
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState("");
   const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState("");
+  const [mensagemOperacao, setMensagemOperacao] = useState("");
+  const [semRestaurante, setSemRestaurante] = useState(false);
+  const [excluindoId, setExcluindoId] = useState<number | null>(null);
+  const [alterandoId, setAlterandoId] = useState<number | null>(null);
 
   const [modalAberto, setModalAberto] = useState(false);
   const [editandoId, setEditandoId] = useState<number | null>(null);
@@ -31,14 +38,16 @@ export default function Cardapio() {
 
   async function carregarCardapio() {
     setLoading(true);
+    setErro("");
+    setSemRestaurante(false);
 
     try {
       const lista = await productService.listar();
       setItens(lista);
     } catch (error) {
-      console.error("Erro ao carregar cardápio:", error);
       setItens([]);
-      alert("Erro ao carregar cardápio. Verifique se você está logado como restaurante.");
+      setSemRestaurante(isRestaurantNotLinkedError(error));
+      setErro(getApiErrorMessage(error, "Não foi possível carregar o cardápio."));
     } finally {
       setLoading(false);
     }
@@ -51,19 +60,25 @@ export default function Cardapio() {
   async function handleSalvar(e: React.FormEvent) {
     e.preventDefault();
 
-    const precoNum = Number(preco.replace(",", "."));
+    const precoTexto = preco.trim().replace(/\s/g, "").replace("R$", "");
+    const precoNum = Number(
+      precoTexto.includes(",")
+        ? precoTexto.replace(/\./g, "").replace(",", ".")
+        : precoTexto
+    );
 
-    if (!nome.trim() || !descricao.trim() || !preco.trim()) {
-      alert("Preencha nome, descrição e preço.");
+    if (!nome.trim() || !preco.trim()) {
+      setMensagemOperacao("Preencha nome e preço.");
       return;
     }
 
     if (Number.isNaN(precoNum) || precoNum <= 0) {
-      alert("Informe um preço válido.");
+      setMensagemOperacao("Informe um preço válido.");
       return;
     }
 
     setSalvando(true);
+    setMensagemOperacao("");
 
     try {
       const payload = {
@@ -83,8 +98,7 @@ export default function Cardapio() {
       await carregarCardapio();
       fecharModal();
     } catch (error) {
-      console.error("Erro ao salvar item:", error);
-      alert("Erro ao salvar item. Confira se você está logado como RESTAURANTE ou FUNCIONARIO.");
+      tratarErroDeOperacao(error, "Não foi possível salvar o item.");
     } finally {
       setSalvando(false);
     }
@@ -97,22 +111,26 @@ export default function Cardapio() {
 
     if (!confirmar) return;
 
+    setExcluindoId(id);
     try {
       await productService.deletar(id);
       await carregarCardapio();
     } catch (error) {
-      console.error("Erro ao deletar item:", error);
-      alert("Erro ao excluir item.");
+      tratarErroDeOperacao(error, "Erro ao excluir item.");
+    } finally {
+      setExcluindoId(null);
     }
   }
 
   async function alternarDisponibilidade(id: number) {
+    setAlterandoId(id);
     try {
       await productService.alternarDisponibilidade(id);
       await carregarCardapio();
     } catch (error) {
-      console.error("Erro ao alterar disponibilidade:", error);
-      alert("Erro ao alterar disponibilidade do item.");
+      tratarErroDeOperacao(error, "Erro ao alterar disponibilidade do item.");
+    } finally {
+      setAlterandoId(null);
     }
   }
 
@@ -146,12 +164,24 @@ export default function Cardapio() {
     setFoto(null);
   }
 
+  function tratarErroDeOperacao(error: unknown, fallback: string) {
+    if (isRestaurantNotLinkedError(error)) {
+      setSemRestaurante(true);
+      setItens([]);
+      fecharModal();
+      return;
+    }
+    setMensagemOperacao(getApiErrorMessage(error, fallback));
+  }
+
   const itensFiltrados = itens.filter((item) => {
     const termo = busca.toLowerCase();
+    const nomeItem = typeof item.nome === "string" ? item.nome : "";
+    const descricaoItem = typeof item.descricao === "string" ? item.descricao : "";
 
     return (
-      item.nome.toLowerCase().includes(termo) ||
-      (item.descricao ?? "").toLowerCase().includes(termo)
+      nomeItem.toLowerCase().includes(termo) ||
+      descricaoItem.toLowerCase().includes(termo)
     );
   });
 
@@ -214,15 +244,17 @@ export default function Cardapio() {
             </p>
           </div>
 
-          <button
-            onClick={abrirCadastro}
-            className="bg-[#E8442A] hover:bg-[#d23920] text-white px-5 py-2.5 rounded-xl text-sm font-bold transition shadow-sm flex items-center gap-2"
-          >
-            <span>+</span> Adicionar Item
-          </button>
+          {!semRestaurante && !loading && (
+            <button
+              onClick={abrirCadastro}
+              className="bg-[#E8442A] hover:bg-[#d23920] text-white px-5 py-2.5 rounded-xl text-sm font-bold transition shadow-sm flex items-center gap-2"
+            >
+              <span>+</span> Adicionar Item
+            </button>
+          )}
         </div>
 
-        <div className="relative mb-8">
+        {!semRestaurante && <div className="relative mb-8">
           <span className="absolute inset-y-0 left-4 flex items-center text-slate-400">
             🔍
           </span>
@@ -234,13 +266,31 @@ export default function Cardapio() {
             onChange={(e) => setBusca(e.target.value)}
             className="w-full max-w-md bg-white pl-11 pr-4 py-3 rounded-xl border border-gray-200 focus:border-[#E8442A] outline-none text-slate-800 placeholder-slate-400 shadow-sm text-sm transition"
           />
-        </div>
+        </div>}
 
-        {loading ? (
+        {mensagemOperacao && !semRestaurante && (
+          <div className="mb-5 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+            {mensagemOperacao}
+          </div>
+        )}
+
+        {semRestaurante ? (
+          <RestauranteNaoVinculado retry={carregarCardapio} />
+        ) : loading ? (
           <div className="bg-white rounded-3xl p-10 text-center border border-gray-100 shadow-sm">
             <p className="text-slate-500 text-sm font-medium">
               Carregando itens do cardápio...
             </p>
+          </div>
+        ) : erro ? (
+          <div className="bg-red-50 rounded-3xl p-10 text-center border border-red-100 shadow-sm">
+            <p className="text-red-600 font-semibold">{erro}</p>
+            <button
+              onClick={carregarCardapio}
+              className="mt-5 bg-[#E8442A] hover:bg-[#d23920] text-white px-5 py-2.5 rounded-xl text-sm font-bold transition"
+            >
+              Tentar novamente
+            </button>
           </div>
         ) : itensFiltrados.length === 0 ? (
           <div className="bg-white rounded-3xl p-10 text-center border border-gray-100 shadow-sm">
@@ -313,16 +363,18 @@ export default function Cardapio() {
 
                   <button
                     onClick={() => alternarDisponibilidade(item.id)}
-                    className="bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs py-2.5 rounded-xl transition shadow-sm text-center"
+                    disabled={alterandoId === item.id}
+                    className="bg-slate-800 hover:bg-slate-900 disabled:bg-slate-400 text-white font-bold text-xs py-2.5 rounded-xl transition shadow-sm text-center"
                   >
-                    {item.disponivel === false ? "Ativar" : "Pausar"}
+                    {alterandoId === item.id ? "Alterando..." : item.disponivel === false ? "Ativar" : "Pausar"}
                   </button>
 
                   <button
                     onClick={() => handleExcluir(item.id)}
-                    className="bg-red-500 hover:bg-red-600 text-white font-bold text-xs py-2.5 rounded-xl transition shadow-sm text-center"
+                    disabled={excluindoId === item.id}
+                    className="bg-red-500 hover:bg-red-600 disabled:bg-red-300 text-white font-bold text-xs py-2.5 rounded-xl transition shadow-sm text-center"
                   >
-                    Excluir
+                    {excluindoId === item.id ? "Excluindo..." : "Excluir"}
                   </button>
                 </div>
               </div>
@@ -377,7 +429,6 @@ export default function Cardapio() {
                 </label>
 
                 <textarea
-                  required
                   rows={3}
                   value={descricao}
                   onChange={(e) => setDescricao(e.target.value)}

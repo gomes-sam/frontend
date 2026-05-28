@@ -39,8 +39,7 @@ export default function GerenciarClientes() {
       const pagina = await adminService.listarClientes(0, 1000);
       setClientes((pagina.content ?? []).filter((usuario) => usuario.tipo === "CLIENTE"));
     } catch (error) {
-      console.error(error);
-      setErro("Erro ao carregar clientes.");
+      setErro(getApiErrorMessage(error, "Erro ao carregar clientes."));
     } finally {
       setLoading(false);
     }
@@ -82,9 +81,8 @@ export default function GerenciarClientes() {
     try {
       await adminService.ativarDesativarUsuario(id);
       await carregarClientes();
-    } catch (err) {
-      console.error(err);
-      alert("Erro ao alterar status.");
+    } catch (error) {
+      setErro(getApiErrorMessage(error, "Erro ao alterar status."));
     }
   }
 
@@ -98,9 +96,8 @@ export default function GerenciarClientes() {
     try {
       await adminService.deletarUsuario(id);
       await carregarClientes();
-    } catch (err) {
-      console.error(err);
-      alert("Erro ao deletar cliente.");
+    } catch (error) {
+      setErro(getApiErrorMessage(error, "Erro ao deletar cliente."));
     }
   }
 
@@ -186,6 +183,12 @@ export default function GerenciarClientes() {
             className="w-full max-w-md bg-white px-4 py-3 rounded-xl border border-gray-200 focus:border-[#E8442A] outline-none text-slate-800 placeholder-slate-400 shadow-sm text-sm transition"
           />
         </div>
+
+        {erro && !modalAberto && (
+          <div className="bg-red-50 border border-red-100 text-red-600 rounded-xl px-4 py-3 text-sm font-semibold mb-4">
+            {erro}
+          </div>
+        )}
 
         <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
           <table className="w-full text-left border-collapse">

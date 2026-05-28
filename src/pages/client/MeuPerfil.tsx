@@ -1,119 +1,86 @@
-import { useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
-import { clearSession } from "../../services/session";
+import { useState } from "react";
 import BotaoVoltar from "../../components/common/BotaoVoltar";
+import { getLocalProfile, saveLocalProfile, type LocalProfile } from "../../services/profileService";
+import { getSession } from "../../services/session";
+import { traduzirTipoUsuario } from "../../utils/formatters";
 
 export default function MeuPerfil() {
-  const navigate = useNavigate();
+  const sessao = getSession()!;
+  const [form, setForm] = useState<LocalProfile>(() => ({
+    usuarioId: sessao.id,
+    nomeExibido: sessao.nome,
+    tema: "claro",
+    ...getLocalProfile(sessao.id),
+  }));
+  const [salvo, setSalvo] = useState(false);
 
-  const nome = localStorage.getItem("@BoiaAqui:nomeUsuario") || "";
-  const email = localStorage.getItem("@BoiaAqui:emailUsuario") || "";
-  const [tipo] = useState(localStorage.getItem("@BoiaAqui:tipoUsuario") || "");
+  function update(field: keyof LocalProfile, value: string) {
+    setSalvo(false);
+    setForm((current) => ({ ...current, [field]: value }));
+  }
 
-  useEffect(() => {
-    if (!nome || !email) {
-      navigate("/login");
-    }
-  }, [nome, email, navigate]);
+  function escolherFoto(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => update("fotoPerfil", String(reader.result));
+    reader.readAsDataURL(file);
+  }
 
-  const tipoLabel: Record<string, string> = {
-    CLIENTE: "Cliente",
-    RESTAURANTE: "Restaurante",
-    FUNCIONARIO: "Funcionário",
-    ADMIN: "Administrador",
-  };
-
-  function handleLogout() {
-    clearSession();
-    navigate("/");
+  function salvar(event: React.FormEvent) {
+    event.preventDefault();
+    saveLocalProfile(form);
+    setSalvo(true);
   }
 
   return (
-    <div className="min-h-screen bg-[#FAF6EE] font-sans">
-      <header className="w-full bg-white border-b border-gray-100 px-8 py-4 flex items-center justify-between shadow-sm">
-        <div
-          onClick={() => navigate("/")}
-          className="flex items-center gap-2 cursor-pointer select-none"
-        >
-          <div className="bg-[#E8442A] text-white p-2 rounded-xl flex items-center justify-center font-bold text-lg w-9 h-9 shadow-sm">
-            🍽️
-          </div>
-          <span className="font-black text-slate-900 tracking-tight text-sm">
-            Boia <span className="text-[#E8442A]">Aqui</span>
-          </span>
+    <section className="max-w-3xl mx-auto">
+      <BotaoVoltar className="mb-5" />
+      <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="bg-gradient-to-r from-[#E8442A] to-[#d13921] px-8 py-6 text-white">
+          <h1 className="text-2xl font-black">Meu Perfil</h1>
+          <p className="text-white/80 text-sm mt-1">Dados da sessao e preferencias locais</p>
         </div>
+        <form onSubmit={salvar} className="p-8 space-y-5">
+          <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 text-sm text-orange-900">
 
-        <button
-          onClick={handleLogout}
-          className="text-xs bg-slate-100 hover:bg-red-50 hover:text-[#E8442A] text-slate-600 font-bold px-4 py-2 rounded-lg transition"
-        >
-          Sair
-        </button>
-      </header>
-
-      <main className="max-w-2xl mx-auto p-6 md:p-10">
-        <BotaoVoltar className="mb-5" />
-        <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="bg-gradient-to-r from-[#E8442A] to-[#d13921] px-8 py-6">
-            <h1 className="text-2xl font-black text-white tracking-tight">
-              Meu Perfil
-            </h1>
-            <p className="text-white/80 text-sm font-medium mt-1">
-              Informações da sua conta
-            </p>
           </div>
-
-          <div className="p-8 space-y-6">
-            {/* Tipo de Usuário */}
-            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-              <p className="text-xs font-bold text-blue-700 uppercase tracking-wider">
-                Tipo de Conta
-              </p>
-              <p className="text-lg font-bold text-blue-900 mt-1">
-                {tipoLabel[tipo as keyof typeof tipoLabel] || tipo}
-              </p>
+          <div className="grid sm:grid-cols-2 gap-4 text-sm">
+            <ReadOnly label="E-mail da conta" value={sessao.email} />
+            <ReadOnly label="Tipo" value={traduzirTipoUsuario(sessao.tipo)} />
+            <ReadOnly label="ID" value={String(sessao.id)} />
+            <Input label="Nome exibido" value={form.nomeExibido || ""} onChange={(value) => update("nomeExibido", value)} />
+            <Input label="Telefone" value={form.telefone || ""} onChange={(value) => update("telefone", value)} />
+            <Input label="CPF" value={form.cpf || ""} onChange={(value) => update("cpf", value)} />
+          </div>
+          <div className="grid sm:grid-cols-2 gap-4 items-end">
+            <div>
+              <label className="block text-xs font-bold text-slate-600 uppercase mb-2">Foto de perfil local</label>
+              <input type="file" accept="image/*" onChange={escolherFoto} className="block w-full text-sm" />
             </div>
-
-            {/* Informações Básicas */}
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-                  Nome Completo
-                </label>
-                <div className="bg-slate-50 border border-gray-200 rounded-xl px-4 py-3 text-slate-800 font-medium">
-                  {nome}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-                  E-mail
-                </label>
-                <div className="bg-slate-50 border border-gray-200 rounded-xl px-4 py-3 text-slate-800 font-medium">
-                  {email}
-                </div>
-              </div>
-            </div>
-
-            {/* Info */}
-            <div className="bg-slate-50 border border-gray-200 rounded-xl p-4">
-              <p className="text-xs text-slate-600 font-medium">
-                💡 Para alterar suas informações, entre em contato com o suporte ou acesse suas configurações de segurança.
-              </p>
-            </div>
-
-            {/* Ações */}
-            <div className="flex gap-3 pt-4">
-              <button
-                onClick={handleLogout}
-                className="flex-1 bg-red-50 hover:bg-red-100 text-red-600 font-bold py-3 rounded-xl text-sm transition"
-              >
-                Sair da Conta
-              </button>
+            <div>
+              <label className="block text-xs font-bold text-slate-600 uppercase mb-2">Preferencia visual</label>
+              <select value={form.tema} onChange={(event) => update("tema", event.target.value)} className="w-full border border-gray-200 rounded-xl px-4 py-3">
+                <option value="claro">Claro</option>
+                <option value="quente">Quente</option>
+              </select>
             </div>
           </div>
-        </div>
-      </main>
-    </div>
+          {form.fotoPerfil && <img src={form.fotoPerfil} alt="Foto de perfil local" className="h-20 w-20 object-cover rounded-full border border-gray-200" />}
+          <div className="flex items-center gap-4">
+            <button type="submit" className="bg-[#E8442A] text-white font-bold px-6 py-3 rounded-xl">Salvar localmente</button>
+            {salvo && <span className="text-green-700 text-sm font-semibold">Alteracoes salvas neste navegador.</span>}
+          </div>
+        </form>
+      </div>
+    </section>
   );
+}
+
+function ReadOnly({ label, value }: { label: string; value: string }) {
+  return <div><p className="text-xs font-bold text-slate-500 uppercase mb-2">{label}</p><div className="bg-slate-50 border border-gray-200 rounded-xl px-4 py-3">{value}</div></div>;
+}
+
+function Input({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+  return <label><span className="block text-xs font-bold text-slate-500 uppercase mb-2">{label}</span><input value={value} onChange={(event) => onChange(event.target.value)} className="w-full border border-gray-200 rounded-xl px-4 py-3" /></label>;
 }

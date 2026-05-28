@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { adminService } from "../../services/adminService";
 import { resolveAssetUrl } from "../../services/api";
+import { getApiErrorMessage } from "../../services/error";
 import { clearSession } from "../../services/session";
 import BotaoVoltar from "../../components/common/BotaoVoltar";
 import type { Restaurante } from "../../types";
@@ -13,6 +14,7 @@ export default function GerenciarRestaurantes() {
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState("");
   const [filtroCategoria, setFiltroCategoria] = useState("Todos");
+  const [erro, setErro] = useState("");
 
   const listaCategorias = [
     "PIZZARIA",
@@ -28,12 +30,13 @@ export default function GerenciarRestaurantes() {
 
   async function carregarRestaurantes() {
     setLoading(true);
+    setErro("");
 
     try {
       const pagina = await adminService.listarRestaurantes(0, 1000);
       setRestaurantes(pagina.content ?? []);
     } catch (error) {
-      console.error("Erro ao carregar restaurantes:", error);
+      setErro(getApiErrorMessage(error, "Erro ao carregar restaurantes."));
       setRestaurantes([]);
     } finally {
       setLoading(false);
@@ -49,8 +52,7 @@ export default function GerenciarRestaurantes() {
       await adminService.ativarDesativarRestaurante(id);
       await carregarRestaurantes();
     } catch (error) {
-      console.error(error);
-      alert("Erro ao alterar status do restaurante.");
+      setErro(getApiErrorMessage(error, "Erro ao alterar status do restaurante."));
     }
   }
 
@@ -61,8 +63,7 @@ export default function GerenciarRestaurantes() {
       await adminService.deletarRestaurante(id);
       await carregarRestaurantes();
     } catch (error) {
-      console.error(error);
-      alert("Erro ao deletar restaurante.");
+      setErro(getApiErrorMessage(error, "Erro ao deletar restaurante."));
     }
   }
 
@@ -166,6 +167,12 @@ export default function GerenciarRestaurantes() {
             ))}
           </select>
         </div>
+
+        {erro && (
+          <div className="bg-red-50 border border-red-100 text-red-600 rounded-xl px-4 py-3 text-sm font-semibold mb-4">
+            {erro}
+          </div>
+        )}
 
         <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">

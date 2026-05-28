@@ -5,9 +5,9 @@ Este documento registra o contrato conferido no OpenAPI disponível em `http://l
 ## Configuração HTTP
 
 - Cliente Axios: `src/services/api.ts`
-- Base URL opcional: `VITE_API_URL`
-- Proxy de desenvolvimento: `vite.config.ts` para `http://localhost:8080`
-- Autorização: header `Authorization: Bearer <token>` quando existe sessão
+- Base URL opcional: `VITE_API_URL`, somente para servidores com CORS autenticado liberado
+- Proxy de desenvolvimento: `vite.config.ts` encaminha `/api/*` para `http://localhost:8080/*`, necessário para JWT no backend local validado e sem colisão com rotas das telas
+- Autorização: header `Authorization: Bearer <token>` lido da chave `@boiaaqui:token` quando existe sessão
 - Catálogo central de rotas: `src/services/endpoints.ts`
 
 ## Enums
@@ -108,4 +108,3 @@ Campos obrigatórios de `FuncionarioRequest`: `nome`, `email`, `senha`, `cpf`, `
 | `GET` | `/admin/listar/restaurantes` | `page`, `size` | `adminService.listarRestaurantes` |
 | `PATCH` | `/admin/atualizar/restaurantes/{id}/ativo` | - | `adminService.ativarDesativarRestaurante` |
 | `DELETE` | `/admin/deletar/restaurantes/{id}` | - | `adminService.deletarRestaurante` |
-

@@ -17,7 +17,8 @@ O frontend foi corrigido para os enums e formatos efetivamente expostos pelo Swa
 | `npm run build` | aprovado |
 | `git diff --check` | aprovado |
 | varredura de chamadas HTTP diretas nas páginas | nenhuma chamada de domínio restante; uso centralizado nos services |
-| proxy Vite `GET /restaurantes/listar` | resposta encaminhada com sucesso ao backend |
+| proxy Vite `GET /api/restaurantes/listar` | resposta encaminhada com sucesso ao backend |
+| `OPTIONS` direto de `5174` para `8080` com header `authorization` | `403`; uso direto do Axios bloquearia JWT por CORS |
 
 O asset pesado da tela de cadastro foi substituído pelo asset otimizado utilizado no login, removendo aproximadamente `2,93 MB` do bundle gerado.
 
@@ -36,6 +37,12 @@ O asset pesado da tela de cadastro foi substituído pelo asset otimizado utiliza
 | criação de pedido com restaurante inexistente | requisição aceita no formato correto e rejeitada pela regra de negócio |
 | pagamento obsoleto `CARTAO_CREDITO` | rejeitado pelo backend, confirmando uso necessário de `CREDITO` |
 
+## Diagnóstico da URL da API
+
+No ambiente validado, o Axios chama `http://localhost:5174/api/...` e o proxy do Vite remove o prefixo `/api` ao encaminhar para o backend em `8080`. Esse desenho evita colisões com telas como `/restaurante/cardapio` e continua necessário enquanto o backend recusar o preflight CORS de chamadas com Bearer token.
+
+Forçar `baseURL: "http://localhost:8080"` sem alteração no backend faria as chamadas autenticadas serem bloqueadas pelo navegador antes de alcançar os controllers.
+
 ## Limitações Confirmadas no Backend
 
 Estas ocorrências impedem declarar todos os fluxos como plenamente utilizáveis apenas com ajustes no frontend:
@@ -48,6 +55,8 @@ Estas ocorrências impedem declarar todos os fluxos como plenamente utilizáveis
 
 Para tornar estes fluxos operacionais, o backend precisa criar ou associar uma entidade `Restaurante` ao cadastro do perfil correspondente e liberar a autorização prevista para funcionários.
 
+No frontend, o cadastro público exibe `CLIENTE`, `RESTAURANTE` e `ADMIN`, enquanto `FUNCIONARIO` continua disponível para autenticação e gestão interna. Contas `RESTAURANTE` recém-criadas sem estabelecimento vinculado recebem uma orientação clara nas telas protegidas.
+
 ## Checklist de Revalidação Após Correção do Backend
 
 1. Cadastrar restaurante e confirmar criação automática da entidade de restaurante.
@@ -57,4 +66,3 @@ Para tornar estes fluxos operacionais, o backend precisa criar ou associar uma e
 5. Alterar status do pedido até `ENTREGUE` e testar `RECUSADO` com motivo.
 6. Alternar loja aberta/fechada e conferir exibição na home pública.
 7. Exercitar operações administrativas de ativação e exclusão.
-

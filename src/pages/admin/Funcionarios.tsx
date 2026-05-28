@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { resolveAssetUrl } from "../../services/api";
-import { getApiErrorMessage } from "../../services/error";
+import { getApiErrorMessage, isForbiddenError, isRestaurantNotLinkedError } from "../../services/error";
 import { clearSession } from "../../services/session";
 import { employeeService } from "../../services/employeeService";
 import BotaoVoltar from "../../components/common/BotaoVoltar";
+import RestauranteNaoVinculado from "../../components/common/RestauranteNaoVinculado";
 import type { Funcionario, FuncionarioRequest } from "../../types";
 
 export default function Funcionarios() {
@@ -18,6 +19,10 @@ export default function Funcionarios() {
   const [editandoId, setEditandoId] = useState<number | null>(null);
   const [foto, setFoto] = useState<File | null>(null);
   const [erro, setErro] = useState("");
+  const [semRestaurante, setSemRestaurante] = useState(false);
+  const [acessoRecusado, setAcessoRecusado] = useState(false);
+  const [salvando, setSalvando] = useState(false);
+  const [excluindoId, setExcluindoId] = useState<number | null>(null);
 
   const [nome, setNome] = useState("");
   const [cpf, setCpf] = useState("");
@@ -32,14 +37,17 @@ export default function Funcionarios() {
   async function carregarFuncionarios() {
     setLoading(true);
     setErro("");
+    setSemRestaurante(false);
+    setAcessoRecusado(false);
 
     try {
       const lista = await employeeService.listar();
       setFuncionarios(lista);
     } catch (error) {
-      console.error("Erro ao buscar funcionários:", error);
+      setSemRestaurante(isRestaurantNotLinkedError(error));
+      setAcessoRecusado(isForbiddenError(error));
       setFuncionarios([]);
-      setErro("Erro ao carregar funcionários.");
+      setErro(getApiErrorMessage(error, "Erro ao carregar funcionários."));
     } finally {
       setLoading(false);
     }
@@ -68,6 +76,7 @@ export default function Funcionarios() {
       telefone: telefone.replace(/\D/g, "") || undefined,
     };
 
+    setSalvando(true);
     try {
       if (editandoId) {
         await employeeService.editar(editandoId, dados, foto);
@@ -78,7 +87,13 @@ export default function Funcionarios() {
       await carregarFuncionarios();
       fecharModal();
     } catch (error: unknown) {
-      setErro(getApiErrorMessage(error, "Erro ao salvar funcionário. Verifique os dados."));
+      setErro(
+        isForbiddenError(error)
+          ? "O back-end recusou a criacao do funcionario para esta sessao (HTTP 403)."
+          : getApiErrorMessage(error, "Erro ao salvar funcionario. Verifique os dados.")
+      );
+    } finally {
+      setSalvando(false);
     }
   }
 
@@ -89,12 +104,14 @@ export default function Funcionarios() {
 
     if (!confirmar) return;
 
+    setExcluindoId(id);
     try {
       await employeeService.deletar(id);
       await carregarFuncionarios();
     } catch (error) {
-      console.error("Erro ao deletar funcionário:", error);
-      alert("Erro ao deletar funcionário.");
+      setErro(getApiErrorMessage(error, "Erro ao deletar funcionário."));
+    } finally {
+      setExcluindoId(null);
     }
   }
 
@@ -204,15 +221,17 @@ export default function Funcionarios() {
             </p>
           </div>
 
-          <button
-            onClick={abrirCadastro}
-            className="bg-[#E8442A] hover:bg-[#d23920] text-white px-5 py-2.5 rounded-xl text-sm font-bold transition shadow-sm flex items-center gap-2"
-          >
-            + Adicionar Funcionário
-          </button>
+          {!semRestaurante && !acessoRecusado && (
+            <button
+              onClick={abrirCadastro}
+              className="bg-[#E8442A] hover:bg-[#d23920] text-white px-5 py-2.5 rounded-xl text-sm font-bold transition shadow-sm flex items-center gap-2"
+            >
+              + Adicionar Funcionário
+            </button>
+          )}
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-4 mb-6">
+        {!semRestaurante && !acessoRecusado && <div className="flex flex-col sm:flex-row gap-4 mb-6">
           <div className="relative flex-1">
             <span className="absolute inset-y-0 left-4 flex items-center text-slate-400">
               🔍
@@ -239,14 +258,32 @@ export default function Funcionarios() {
               </option>
             ))}
           </select>
-        </div>
+        </div>}
 
-        {erro && !modalAberto && (
-          <div className="bg-red-50 border border-red-100 text-red-600 rounded-xl px-4 py-3 text-sm font-semibold mb-4">
-            {erro}
+        {semRestaurante ? (
+          <RestauranteNaoVinculado retry={carregarFuncionarios} />
+        ) : acessoRecusado ? (
+          <div className="bg-white rounded-3xl border border-orange-100 shadow-sm p-10 text-center max-w-2xl mx-auto">
+            <h2 className="text-xl font-black text-slate-900 mb-3">Acesso a funcionarios recusado</h2>
+            <p className="text-slate-600 mb-3">
+              A API respondeu <strong>403 (Forbidden)</strong> para os endpoints reais de funcionarios.
+            </p>
+            <p className="text-slate-500 text-sm mb-6">
+              A tela esta conectada corretamente, mas a sessao atual nao foi autorizada pelo back-end em execucao.
+              Confirme que voce entrou como RESTAURANTE ou FUNCIONARIO e que o servidor foi iniciado com a configuracao atual.
+            </p>
+            <div className="flex flex-wrap justify-center gap-3">
+              <button onClick={() => navigate("/restaurante/painel")} className="px-5 py-2.5 rounded-xl border border-gray-200 font-bold text-sm">Voltar</button>
+              <button onClick={() => { clearSession(); navigate("/login"); }} className="px-5 py-2.5 rounded-xl bg-slate-800 text-white font-bold text-sm">Sair</button>
+              <button onClick={carregarFuncionarios} className="px-5 py-2.5 rounded-xl bg-[#E8442A] text-white font-bold text-sm">Tentar novamente</button>
+            </div>
           </div>
-        )}
-
+        ) : <>
+          {erro && !modalAberto && (
+            <div className="bg-red-50 border border-red-100 text-red-600 rounded-xl px-4 py-3 text-sm font-semibold mb-4">
+              {erro}
+            </div>
+          )}
         <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
@@ -324,9 +361,10 @@ export default function Funcionarios() {
 
                           <button
                             onClick={() => handleExcluir(f.id)}
+                            disabled={excluindoId === f.id}
                             className="bg-red-500 hover:bg-red-600 text-white font-bold text-xs px-3 py-1.5 rounded-lg transition shadow-sm"
                           >
-                            Excluir
+                            {excluindoId === f.id ? "Excluindo..." : "Excluir"}
                           </button>
                         </div>
                       </td>
@@ -337,6 +375,7 @@ export default function Funcionarios() {
             </table>
           </div>
         </div>
+        </>}
       </main>
 
       {modalAberto && (
@@ -352,6 +391,7 @@ export default function Funcionarios() {
                 value={nome}
                 onChange={setNome}
                 placeholder="Nome completo"
+                autoComplete="name"
               />
 
               <div className="grid grid-cols-2 gap-4">
@@ -360,6 +400,7 @@ export default function Funcionarios() {
                   value={cpf}
                   onChange={setCpf}
                   placeholder="000.000.000-00"
+                  autoComplete="off"
                 />
 
                 <div>
@@ -386,6 +427,7 @@ export default function Funcionarios() {
                 value={setor}
                 onChange={setSetor}
                 placeholder="Ex: Cozinha, Salão..."
+                autoComplete="organization-title"
               />
 
               <Input
@@ -394,6 +436,7 @@ export default function Funcionarios() {
                 onChange={setEmail}
                 placeholder="email@exemplo.com"
                 type="email"
+                autoComplete="email"
               />
 
               <Input
@@ -403,6 +446,7 @@ export default function Funcionarios() {
                 placeholder="••••••••"
                 type="password"
                 required
+                autoComplete="new-password"
               />
 
               <Input
@@ -411,6 +455,7 @@ export default function Funcionarios() {
                 onChange={setTelefone}
                 placeholder="(00) 00000-0000"
                 required={false}
+                autoComplete="tel"
               />
 
               <div>
@@ -443,9 +488,10 @@ export default function Funcionarios() {
 
                 <button
                   type="submit"
-                  className="bg-[#E8442A] hover:bg-[#d23920] text-white font-bold text-xs px-5 py-2.5 rounded-xl transition shadow-sm"
+                  disabled={salvando}
+                  className="bg-[#E8442A] hover:bg-[#d23920] disabled:bg-slate-300 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition shadow-sm"
                 >
-                  {editandoId ? "Atualizar" : "Cadastrar"}
+                  {salvando ? "Salvando..." : editandoId ? "Atualizar" : "Cadastrar"}
                 </button>
               </div>
             </form>
@@ -462,6 +508,7 @@ interface InputProps {
   placeholder: string;
   type?: string;
   required?: boolean;
+  autoComplete?: string;
   onChange: (value: string) => void;
 }
 
@@ -471,6 +518,7 @@ function Input({
   placeholder,
   type = "text",
   required = true,
+  autoComplete,
   onChange,
 }: InputProps) {
   return (
@@ -482,6 +530,7 @@ function Input({
       <input
         type={type}
         required={required}
+        autoComplete={autoComplete}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className="w-full bg-slate-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#E8442A] text-slate-800 transition"

@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { getApiErrorMessage } from "../../services/error";
-import { orderService } from "../../services/orderService";
 import { restaurantService } from "../../services/restaurantService";
-import { clearSession } from "../../services/session";
+import { saveCheckoutDraft } from "../../services/cartService";
+import { clearSession, getSession } from "../../services/session";
 import BotaoVoltar from "../../components/common/BotaoVoltar";
 import type { FormaPagamento, MenuItem, PedidoRequest, Restaurante } from "../../types";
 
@@ -29,7 +29,7 @@ export default function DetalheRestaurante() {
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState("");
 
-  const logado = !!localStorage.getItem("@BoiaAqui:token");
+  const sessao = getSession();
 
   useEffect(() => {
     const restauranteId = Number(id);
@@ -104,9 +104,16 @@ export default function DetalheRestaurante() {
   const total = subtotal + taxaEntrega;
   const qtdTotal = carrinho.reduce((acc, c) => acc + c.quantidade, 0);
 
-  const handleConfirmar = async () => {
-    if (!logado) {
+  const handleConfirmar = async (event?: React.FormEvent) => {
+    event?.preventDefault();
+
+    if (!sessao) {
       navigate("/login");
+      return;
+    }
+
+    if (sessao.tipo !== "CLIENTE") {
+      navigate("/acesso-negado");
       return;
     }
 
@@ -135,9 +142,8 @@ export default function DetalheRestaurante() {
         observacao,
       };
 
-      await orderService.criar(pedido);
-
-      navigate("/meus-pedidos");
+      saveCheckoutDraft({ usuarioId: sessao.id, restaurante, itens: carrinho, pedido });
+      navigate("/checkout");
     } catch (error: unknown) {
       setErro(getApiErrorMessage(error, "Erro ao confirmar pedido."));
     } finally {

@@ -16,11 +16,13 @@ const CATEGORIAS: Array<{ nome: string; valor: CategoriaRestaurante; emoji: stri
   { nome: "Mexicana", valor: "MEXICANA", emoji: "🌮" },
   { nome: "Saudável", valor: "SAUDAVEL", emoji: "🥗" },
   { nome: "Doceria", valor: "DOCERIA", emoji: "🍰" },
+  { nome: "Outros", valor: "OUTROS", emoji: "+" },
 ];
 
 export default function HomePublica() {
   const navigate = useNavigate();
   const buscaRef = useRef<HTMLInputElement>(null);
+  const buscaRequestRef = useRef(0);
 
   const [restaurantes, setRestaurantes] = useState<Restaurante[]>([]);
   const [resultados, setResultados] = useState<Restaurante[]>([]);
@@ -28,6 +30,7 @@ export default function HomePublica() {
   const [categoriaAtiva, setCategoriaAtiva] = useState("");
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState("");
+  const [erroBusca, setErroBusca] = useState("");
 
   useEffect(() => {
     carregarRestaurantes();
@@ -50,8 +53,10 @@ export default function HomePublica() {
   }
 
   async function handleBusca(termo: string) {
+    const requestId = ++buscaRequestRef.current;
     setBusca(termo);
     setCategoriaAtiva("");
+    setErroBusca("");
 
     if (termo.trim().length < 2) {
       setResultados([]);
@@ -60,10 +65,14 @@ export default function HomePublica() {
 
     try {
       const lista = await restaurantService.buscar(termo.trim());
-      setResultados(lista);
+      if (requestId === buscaRequestRef.current) {
+        setResultados(lista);
+      }
     } catch (error) {
-      console.error("Erro na busca:", error);
-      setResultados([]);
+      if (requestId === buscaRequestRef.current) {
+        setErroBusca(getApiErrorMessage(error, "Não foi possível buscar restaurantes."));
+        setResultados([]);
+      }
     }
   }
 
@@ -71,6 +80,8 @@ export default function HomePublica() {
     setCategoriaAtiva(valor);
     setBusca("");
     setResultados([]);
+    setErroBusca("");
+    setErro("");
 
     if (!valor) {
       carregarRestaurantes();
@@ -83,7 +94,7 @@ export default function HomePublica() {
       const lista = await restaurantService.buscarPorCategoria(valor);
       setRestaurantes(lista);
     } catch (error) {
-      console.error("Erro ao filtrar categoria:", error);
+      setErro(getApiErrorMessage(error, "Não foi possível filtrar os restaurantes."));
       setRestaurantes([]);
     } finally {
       setLoading(false);
@@ -186,6 +197,9 @@ export default function HomePublica() {
                     </button>
                   ))}
                 </div>
+              )}
+              {erroBusca && (
+                <p className="mt-2 text-xs text-red-600 font-semibold">{erroBusca}</p>
               )}
             </div>
           </div>

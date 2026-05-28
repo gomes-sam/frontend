@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { authService } from "../../services/authService";
 import { getApiErrorMessage } from "../../services/error";
+import { setFlashMessage } from "../../services/flashMessage";
 import { saveSession } from "../../services/session";
 import type { TipoUsuario } from "../../types";
 import dogImg from "../../assets/hero.png";
@@ -78,11 +79,12 @@ export default function Cadastro() {
       const auth = await authService.register(payload);
 
       saveSession(auth);
+      setFlashMessage(`Cadastro realizado com sucesso. Bem-vindo, ${auth.nome}!`);
 
       const redirectTo =
         auth.tipo === "ADMIN"
           ? "/admin/home"
-          : auth.tipo === "RESTAURANTE"
+          : auth.tipo === "RESTAURANTE" || auth.tipo === "FUNCIONARIO"
           ? "/restaurante/painel"
           : "/";
 
@@ -237,9 +239,12 @@ export default function Cadastro() {
               >
                 <option value="">Selecione o tipo de perfil</option>
                 <option value="CLIENTE">Cliente / Consumidor</option>
-                <option value="RESTAURANTE">Dono de Restaurante</option>
+                <option value="RESTAURANTE">Restaurante</option>
                 <option value="ADMIN">Administrador</option>
               </select>
+              <p className="text-[10px] text-slate-400 font-medium mt-1 pl-1">
+                Perfis disponiveis no cadastro publico. Funcionarios sao cadastrados pelo restaurante.
+              </p>
             </div>
 
             <button

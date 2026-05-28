@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getApiErrorMessage } from "../../services/error";
+import { getApiErrorMessage, isRestaurantNotLinkedError } from "../../services/error";
 import { orderService } from "../../services/orderService";
 import { clearSession } from "../../services/session";
 import BotaoVoltar from "../../components/common/BotaoVoltar";
+import RestauranteNaoVinculado from "../../components/common/RestauranteNaoVinculado";
 import type { Pedido, StatusPedido } from "../../types";
 
 const statusOptions: StatusPedido[] = [
@@ -43,15 +44,22 @@ export default function PainelRestaurante() {
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState("");
+  const [mensagemOperacao, setMensagemOperacao] = useState("");
+  const [semRestaurante, setSemRestaurante] = useState(false);
+  const [atualizandoId, setAtualizandoId] = useState<number | null>(null);
+  const [alternandoAberto, setAlternandoAberto] = useState(false);
 
   async function carregarPedidos() {
     setLoading(true);
     setErro("");
+    setMensagemOperacao("");
+    setSemRestaurante(false);
 
     try {
       const lista = await orderService.listarPedidosRestaurante();
       setPedidos(lista);
     } catch (error) {
+      setSemRestaurante(isRestaurantNotLinkedError(error));
       setErro(getApiErrorMessage(error, "Erro ao carregar pedidos do restaurante."));
       setPedidos([]);
     } finally {
@@ -69,6 +77,7 @@ export default function PainelRestaurante() {
       return;
     }
 
+    setAtualizandoId(id);
     try {
       await orderService.atualizarStatus(id, {
         status,
@@ -77,17 +86,31 @@ export default function PainelRestaurante() {
 
       await carregarPedidos();
     } catch (error) {
-      alert(getApiErrorMessage(error, "Erro ao atualizar status do pedido."));
+      tratarErroDeOperacao(error, "Erro ao atualizar status do pedido.");
+    } finally {
+      setAtualizandoId(null);
     }
   }
 
   async function alternarAberto() {
+    setAlternandoAberto(true);
     try {
       await orderService.alternarAberto();
-      alert("Status de funcionamento alterado.");
+      setMensagemOperacao("Status de funcionamento alterado.");
     } catch (error) {
-      alert(getApiErrorMessage(error, "Erro ao alterar status do restaurante."));
+      tratarErroDeOperacao(error, "Erro ao alterar status do restaurante.");
+    } finally {
+      setAlternandoAberto(false);
     }
+  }
+
+  function tratarErroDeOperacao(error: unknown, fallback: string) {
+    if (isRestaurantNotLinkedError(error)) {
+      setSemRestaurante(true);
+      setPedidos([]);
+      return;
+    }
+    setMensagemOperacao(getApiErrorMessage(error, fallback));
   }
 
   useEffect(() => {
@@ -153,7 +176,7 @@ export default function PainelRestaurante() {
             </p>
           </div>
 
-          <div className="flex gap-3">
+          {!semRestaurante && <div className="flex gap-3">
             <button
               onClick={carregarPedidos}
               className="bg-white border border-gray-200 text-slate-700 px-5 py-2.5 rounded-xl text-sm font-bold transition shadow-sm hover:bg-slate-50"
@@ -163,14 +186,23 @@ export default function PainelRestaurante() {
 
             <button
               onClick={alternarAberto}
-              className="bg-[#E8442A] hover:bg-[#d23920] text-white px-5 py-2.5 rounded-xl text-sm font-bold transition shadow-sm"
+              disabled={alternandoAberto}
+              className="bg-[#E8442A] hover:bg-[#d23920] disabled:bg-slate-300 text-white px-5 py-2.5 rounded-xl text-sm font-bold transition shadow-sm"
             >
-              Abrir/Fechar loja
+              {alternandoAberto ? "Alterando..." : "Abrir/Fechar loja"}
             </button>
-          </div>
+          </div>}
         </div>
 
-        {loading ? (
+        {mensagemOperacao && !semRestaurante && !loading && !erro && (
+          <div className="mb-5 rounded-xl border border-orange-100 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm">
+            {mensagemOperacao}
+          </div>
+        )}
+
+        {semRestaurante ? (
+          <RestauranteNaoVinculado retry={carregarPedidos} />
+        ) : loading ? (
           <div className="bg-white rounded-3xl p-10 text-center border border-gray-100 shadow-sm">
             <p className="text-slate-500 text-sm font-medium">
               Carregando pedidos...
@@ -244,8 +276,16 @@ export default function PainelRestaurante() {
                       {traduzirStatus(pedido.status)}
                     </span>
 
+                    <button
+                      onClick={() => navigate(`/restaurante/pedidos/${pedido.id}`)}
+                      className="bg-white border border-gray-200 text-slate-700 px-3 py-2 rounded-xl text-sm font-bold transition hover:bg-slate-50"
+                    >
+                      Ver detalhes
+                    </button>
+
                     <select
                       value={pedido.status}
+                      disabled={atualizandoId === pedido.id}
                       onChange={(e) =>
                         atualizarStatus(pedido.id, e.target.value as StatusPedido)
                       }

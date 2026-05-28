@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { adminService } from "../../services/adminService";
+import { getApiErrorMessage } from "../../services/error";
 import type { Usuario, Restaurante } from "../../types";
 import { clearSession } from "../../services/session";
 import BotaoVoltar from "../../components/common/BotaoVoltar";
@@ -14,9 +15,11 @@ export default function HomeAdmin() {
   const [totalRestaurantes, setTotalRestaurantes] = useState(0);
   const [totalFuncionarios, setTotalFuncionarios] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState("");
 
   async function carregarDados() {
     setLoading(true);
+    setErro("");
 
     try {
       const [usuariosRes, restaurantesRes] = await Promise.all([
@@ -39,8 +42,8 @@ export default function HomeAdmin() {
       );
 
       setTotalRestaurantes(listaRestaurantes.length);
-    } catch (err) {
-      console.error("Erro ao carregar painel:", err);
+    } catch (error) {
+      setErro(getApiErrorMessage(error, "Erro ao carregar painel administrativo."));
     } finally {
       setLoading(false);
     }
@@ -54,8 +57,8 @@ export default function HomeAdmin() {
     try {
       await adminService.ativarDesativarUsuario(id);
       carregarDados();
-    } catch (err) {
-      console.error(err);
+    } catch (error) {
+      setErro(getApiErrorMessage(error, "Erro ao alterar status do usuario."));
     }
   }
 
@@ -63,8 +66,8 @@ export default function HomeAdmin() {
     try {
       await adminService.ativarDesativarRestaurante(id);
       carregarDados();
-    } catch (err) {
-      console.error(err);
+    } catch (error) {
+      setErro(getApiErrorMessage(error, "Erro ao alterar status do restaurante."));
     }
   }
 
@@ -74,8 +77,8 @@ export default function HomeAdmin() {
     try {
       await adminService.deletarUsuario(id);
       carregarDados();
-    } catch (err) {
-      console.error(err);
+    } catch (error) {
+      setErro(getApiErrorMessage(error, "Erro ao deletar usuario."));
     }
   }
 
@@ -85,8 +88,8 @@ export default function HomeAdmin() {
     try {
       await adminService.deletarRestaurante(id);
       carregarDados();
-    } catch (err) {
-      console.error(err);
+    } catch (error) {
+      setErro(getApiErrorMessage(error, "Erro ao deletar restaurante."));
     }
   }
 
@@ -154,6 +157,12 @@ export default function HomeAdmin() {
             Visão geral do ecossistema BoiaAqui
           </p>
         </div>
+
+        {erro && (
+          <div className="bg-red-50 border border-red-100 text-red-600 rounded-xl px-4 py-3 text-sm font-semibold mb-6">
+            {erro}
+          </div>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
           {[
