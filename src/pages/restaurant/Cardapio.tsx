@@ -212,6 +212,13 @@ export default function Cardapio() {
             </button>
 
             <button
+              onClick={() => navigate("/restaurante/meu-restaurante")}
+              className="w-full text-left px-4 py-3 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-xl transition"
+            >
+              Meu Restaurante
+            </button>
+
+            <button
               onClick={() => navigate("/")}
               className="w-full text-left px-4 py-3 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-xl transition"
             >

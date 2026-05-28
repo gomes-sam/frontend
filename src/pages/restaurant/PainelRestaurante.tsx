@@ -68,12 +68,8 @@ export default function PainelRestaurante() {
   }
 
   async function atualizarStatus(id: number, status: StatusPedido) {
-    const motivoRecusa =
-      status === "RECUSADO"
-        ? window.prompt("Informe o motivo da recusa do pedido:")?.trim()
-        : undefined;
-
-    if (status === "RECUSADO" && !motivoRecusa) {
+    if (status === "RECUSADO" || status === "CANCELADO") {
+      setMensagemOperacao("Abra os detalhes do pedido para informar o motivo antes de recusar ou cancelar.");
       return;
     }
 
@@ -81,7 +77,6 @@ export default function PainelRestaurante() {
     try {
       await orderService.atualizarStatus(id, {
         status,
-        motivoRecusa,
       });
 
       await carregarPedidos();
@@ -141,6 +136,13 @@ export default function PainelRestaurante() {
               className="w-full text-left px-4 py-3 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-xl transition"
             >
               🍔 Cardápio
+            </button>
+
+            <button
+              onClick={() => navigate("/restaurante/meu-restaurante")}
+              className="w-full text-left px-4 py-3 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-xl transition"
+            >
+              Meu Restaurante
             </button>
 
             <button

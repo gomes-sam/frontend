@@ -191,6 +191,13 @@ export default function Funcionarios() {
               🍔 Cardápio
             </button>
 
+            <button
+              onClick={() => navigate("/restaurante/meu-restaurante")}
+              className="w-full text-left px-4 py-3 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-xl transition"
+            >
+              Meu Restaurante
+            </button>
+
             <button className="w-full text-left px-4 py-3 text-sm font-semibold bg-[#E8442A]/10 text-[#E8442A] rounded-xl transition">
               👥 Funcionários
             </button>

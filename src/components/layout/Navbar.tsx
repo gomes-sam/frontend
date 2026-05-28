@@ -59,6 +59,7 @@ export default function Navbar() {
           <>
             <button onClick={() => navigate("/restaurante/painel")} className="hover:text-[#E8442A] transition">Painel Restaurante</button>
             <button onClick={() => navigate("/restaurante/dashboard")} className="hover:text-[#E8442A] transition">Dashboard</button>
+            <button onClick={() => navigate("/restaurante/meu-restaurante")} className="hover:text-[#E8442A] transition">Meu Restaurante</button>
             <button onClick={() => navigate("/restaurante/cardapio")} className="hover:text-[#E8442A] transition">Cardapio</button>
             <button onClick={() => navigate("/restaurante/funcionarios")} className="hover:text-[#E8442A] transition">Funcionarios</button>
           </>

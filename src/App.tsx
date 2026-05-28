@@ -21,6 +21,7 @@ import Cardapio from "./pages/restaurant/Cardapio";
 import DashboardRestaurante from "./pages/restaurant/DashboardRestaurante";
 import DetalhePedidoRestaurante from "./pages/restaurant/DetalhePedidoRestaurante";
 import DetalheRestaurante from "./pages/restaurant/DetalheRestaurante";
+import MeuRestaurante from "./pages/restaurant/MeuRestaurante";
 import PainelRestaurante from "./pages/restaurant/PainelRestaurante";
 import { getSession } from "./services/session";
 
@@ -58,6 +59,7 @@ function AppRoutes() {
         <Route path="/pedido/sucesso" element={<RotaCliente><SucessoPedido /></RotaCliente>} />
         <Route path="/restaurante/painel" element={<RotaRestaurante><PainelRestaurante /></RotaRestaurante>} />
         <Route path="/restaurante/dashboard" element={<RotaRestaurante><DashboardRestaurante /></RotaRestaurante>} />
+        <Route path="/restaurante/meu-restaurante" element={<RotaRestaurante><MeuRestaurante /></RotaRestaurante>} />
         <Route path="/restaurante/cardapio" element={<RotaRestaurante><Cardapio /></RotaRestaurante>} />
         <Route path="/restaurante/funcionarios" element={<RotaRestaurante><Funcionarios /></RotaRestaurante>} />
         <Route path="/restaurante/pedidos/:id" element={<RotaRestaurante><DetalhePedidoRestaurante /></RotaRestaurante>} />

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import BotaoVoltar from "../../components/common/BotaoVoltar";
 import RestauranteNaoVinculado from "../../components/common/RestauranteNaoVinculado";
+import { Button } from "../../components/common/ui";
 import { getApiErrorMessage, isRestaurantNotLinkedError } from "../../services/error";
 import { orderService } from "../../services/orderService";
 import type { Pedido, StatusPedido } from "../../types";
@@ -26,6 +27,8 @@ export default function DetalhePedidoRestaurante() {
   const [erro, setErro] = useState("");
   const [semRestaurante, setSemRestaurante] = useState(false);
   const [atualizando, setAtualizando] = useState(false);
+  const [statusSelecionado, setStatusSelecionado] = useState<StatusPedido>("AGUARDANDO");
+  const [motivoRecusa, setMotivoRecusa] = useState("");
 
   const carregar = useCallback(async () => {
     const pedidoId = Number(id);
@@ -40,7 +43,12 @@ export default function DetalhePedidoRestaurante() {
     setSemRestaurante(false);
     try {
       const lista = await orderService.listarPedidosRestaurante();
-      setPedido(lista.find((item) => item.id === pedidoId) ?? null);
+      const encontrado = lista.find((item) => item.id === pedidoId) ?? null;
+      setPedido(encontrado);
+      if (encontrado) {
+        setStatusSelecionado(encontrado.status);
+        setMotivoRecusa(encontrado.motivoRecusa ?? "");
+      }
     } catch (error) {
       setSemRestaurante(isRestaurantNotLinkedError(error));
       setErro(getApiErrorMessage(error, "Não foi possível carregar o pedido."));
@@ -53,19 +61,22 @@ export default function DetalhePedidoRestaurante() {
     carregar();
   }, [carregar]);
 
-  async function atualizarStatus(status: StatusPedido) {
+  async function atualizarStatus() {
     if (!pedido) return;
-    const motivoRecusa =
-      status === "RECUSADO"
-        ? window.prompt("Informe o motivo da recusa do pedido:")?.trim()
-        : undefined;
+    const exigeMotivo = statusSelecionado === "RECUSADO" || statusSelecionado === "CANCELADO";
 
-    if (status === "RECUSADO" && !motivoRecusa) return;
+    if (exigeMotivo && !motivoRecusa.trim()) {
+      setErro("Informe o motivo antes de recusar ou cancelar o pedido.");
+      return;
+    }
 
     setAtualizando(true);
     setErro("");
     try {
-      await orderService.atualizarStatus(pedido.id, { status, motivoRecusa });
+      await orderService.atualizarStatus(pedido.id, {
+        status: statusSelecionado,
+        motivoRecusa: exigeMotivo ? motivoRecusa.trim() : undefined,
+      });
       await carregar();
     } catch (error) {
       setErro(getApiErrorMessage(error, "Não foi possível atualizar o status."));
@@ -103,16 +114,30 @@ export default function DetalhePedidoRestaurante() {
               <h2 className="mt-1 text-xl font-black text-slate-900">{pedido.nomeRestaurante || "Pedido do cliente"}</h2>
               <p className="mt-1 text-sm text-slate-500">{formatarData(pedido.criadoEm)} às {formatarHora(pedido.criadoEm)}</p>
             </div>
-            <select
-              value={pedido.status}
-              disabled={atualizando}
-              onChange={(event) => atualizarStatus(event.target.value as StatusPedido)}
-              className="rounded-xl border border-gray-200 bg-slate-50 px-3 py-2 text-sm font-semibold outline-none focus:border-[#E8442A]"
-            >
-              {statusOptions.map((status) => (
-                <option key={status} value={status}>{traduzirStatusPedido(status)}</option>
-              ))}
-            </select>
+            <div className="flex flex-col gap-2 sm:min-w-64">
+              <select
+                value={statusSelecionado}
+                disabled={atualizando}
+                onChange={(event) => setStatusSelecionado(event.target.value as StatusPedido)}
+                className="rounded-xl border border-gray-200 bg-slate-50 px-3 py-2 text-sm font-semibold outline-none focus:border-[#E8442A]"
+              >
+                {statusOptions.map((status) => (
+                  <option key={status} value={status}>{traduzirStatusPedido(status)}</option>
+                ))}
+              </select>
+              {(statusSelecionado === "RECUSADO" || statusSelecionado === "CANCELADO") && (
+                <textarea
+                  value={motivoRecusa}
+                  onChange={(event) => setMotivoRecusa(event.target.value)}
+                  rows={3}
+                  placeholder="Motivo da recusa ou cancelamento"
+                  className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-[#E8442A]"
+                />
+              )}
+              <Button disabled={atualizando || statusSelecionado === pedido.status} onClick={atualizarStatus}>
+                {atualizando ? "Atualizando..." : "Atualizar status"}
+              </Button>
+            </div>
           </div>
 
           <div className="mt-6 grid gap-3 border-y border-gray-100 py-5 text-sm">
