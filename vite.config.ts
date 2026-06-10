@@ -2,6 +2,8 @@ import { realpathSync } from 'node:fs'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
+import { cloudflare } from "@cloudflare/vite-plugin";
+
 const root = realpathSync.native('.')
 const backendProxy = {
   target: 'http://localhost:8080',
@@ -12,7 +14,7 @@ const backendProxy = {
 // https://vite.dev/config/
 export default defineConfig({
   root,
-  plugins: [react()],
+  plugins: [react(), cloudflare()],
   server: {
     port: 5174,
     proxy: {
